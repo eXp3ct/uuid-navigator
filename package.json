@@ -9,15 +9,26 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:sql",
+    "onLanguage:mssql"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "uuid-navigator.helloWorld",
-        "title": "Hello World"
+        "command": "uuid-navigator.findUuids",
+        "title": "Find all UUIDs in current file"
       }
-    ]
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "uuid-navigator.findUuids",
+          "when": "editorLangId == sql || editorLangId == mssql"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "yarn run compile",

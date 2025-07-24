@@ -1,26 +1,79 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+    console.log('UUID Navigator activated for MS SQL');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "uuid-navigator" is now active!');
+    // Стиль подсветки
+    const uuidDecorationType = vscode.window.createTextEditorDecorationType({
+        textDecoration: 'underline',
+        cursor: 'pointer',
+        color: '#569CD6',
+        backgroundColor: 'rgba(100, 200, 255, 0.1)'
+    });
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('uuid-navigator.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from uuid-navigator!');
-	});
+    // Команда для ручного поиска UUID
+    const findUuidsCommand = vscode.commands.registerCommand('uuid-navigator.findUuids', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            highlightUuids(editor);
+            vscode.window.showInformationMessage(`UUID search completed in ${editor.document.fileName}`);
+        } else {
+            vscode.window.showWarningMessage('No active editor found');
+        }
+    });
 
-	context.subscriptions.push(disposable);
+    // Автоматическая подсветка
+    const handleEditorChange = (editor: vscode.TextEditor | undefined) => {
+        if (editor && isMsSqlFile(editor.document)) {
+            highlightUuids(editor);
+        }
+    };
+
+    // Проверка для MS SQL файлов
+    function isMsSqlFile(document: vscode.TextDocument): boolean {
+        return document.languageId === 'sql' || 
+               document.languageId === 'mssql' || 
+               document.fileName.endsWith('.sql');
+    }
+
+    // Подсветка UUID
+    function highlightUuids(editor: vscode.TextEditor) {
+        const text = editor.document.getText();
+        const decorations: vscode.DecorationOptions[] = [];
+        
+        // Улучшенный regex для всех вариантов UUID
+        const uuidRegex = /(?<q>["'])?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:(?<=['"])|(?<w>["'])?)/g;
+
+        let match;
+        while ((match = uuidRegex.exec(text)) !== null) {
+            const startPos = editor.document.positionAt(match.index);
+            const endPos = editor.document.positionAt(match.index + match[0].length);
+            
+            decorations.push({
+                range: new vscode.Range(startPos, endPos),
+                hoverMessage: `UUID: ${match[0].replace(/["']/g, '')}`,
+                renderOptions: {
+                    after: {
+                        contentText: " (UUID)",
+                        color: 'rgba(153,153,153,0.7)'
+                    }
+                }
+            });
+        }
+
+        editor.setDecorations(uuidDecorationType, decorations);
+    }
+
+    // Регистрация обработчиков
+    context.subscriptions.push(findUuidsCommand);
+    vscode.window.onDidChangeActiveTextEditor(handleEditorChange);
+    vscode.workspace.onDidChangeTextDocument(e => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && e.document === editor.document) {
+            handleEditorChange(editor);
+        }
+    });
+
+    // Инициализация для текущего редактора
+    handleEditorChange(vscode.window.activeTextEditor);
 }
-
-// This method is called when your extension is deactivated
-export function deactivate() {}
