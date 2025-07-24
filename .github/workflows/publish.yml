@@ -50,6 +50,6 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           name: "v${{ steps.get_version.outputs.VERSION }}"
-          body: CHANGELOG.md
+          body-path: CHANGELOG.md
           files: |
             *.vsix
