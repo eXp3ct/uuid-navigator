@@ -32,7 +32,32 @@
           "MS SQL"
         ]
       }
-    ]
+    ],
+    "configuration": {
+      "title": "UUID Navigator",
+      "properties": {
+        "uuidNavigator.highlightColor": {
+          "type": "string",
+          "default": "#569CD6",
+          "description": "Text color for UUID highlighting (HEX format)"
+        },
+        "uuidNavigator.underline": {
+          "type": "boolean",
+          "default": true,
+          "description": "Underline UUIDs"
+        },
+        "uuidNavigator.backgroundColor": {
+          "type": "string",
+          "default": "#64c8ff1a",
+          "description": "Background color for UUIDs (HEX with alpha, e.g. #RRGGBBAA)"
+        },
+        "uuidNavigator.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications when finding UUID references"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "yarn run compile",

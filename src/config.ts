@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
 export interface ExtensionConfig {
-  highlightColor: string;
-  underline: boolean;
-  backgroundColor: string;
+  highlightColor: string;  // Цвет текста UUID
+  underline: boolean;      // Подчёркивание
+  backgroundColor: string; // Фон UUID (HEX с альфа-каналом)
   showNotifications: boolean;
 }
 
@@ -12,7 +12,7 @@ export function getConfig(): ExtensionConfig {
   return {
     highlightColor: config.get('highlightColor', '#569CD6'),
     underline: config.get('underline', true),
-    backgroundColor: config.get('backgroundColor', 'rgba(100, 200, 255, 0.1)'),
+    backgroundColor: config.get('backgroundColor', '#64c8ff1a'), // HEX с альфа-каналом
     showNotifications: config.get('showNotifications', true)
   };
 }

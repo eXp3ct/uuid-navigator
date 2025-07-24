@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getConfig } from './config';
+import { ExtensionConfig, getConfig } from './config';
 
 let referenceDecorations: vscode.TextEditorDecorationType[] = [];
 
@@ -37,7 +37,7 @@ async function findUuidLocations(uuid: string) {
   const locations: vscode.Location[] = [];
   const files = await vscode.workspace.findFiles('**/*.sql');
 
-  const decorationType = createReferenceDecorationType();
+  const decorationType = createReferenceDecorationType(getConfig());
   referenceDecorations.push(decorationType);
 
   for (const file of files) {
@@ -46,7 +46,7 @@ async function findUuidLocations(uuid: string) {
 
     matches.forEach(match => {
       locations.push(new vscode.Location(file, match.range));
-      highlightMatchInEditor(file, match, decorationType);
+      highlightMatchInEditor(file, match);
     });
   }
 
@@ -60,10 +60,10 @@ async function findUuidLocations(uuid: string) {
   return locations;
 }
 
-function createReferenceDecorationType() {
+function createReferenceDecorationType(config: ExtensionConfig) {
   return vscode.window.createTextEditorDecorationType({
-    backgroundColor: 'rgba(255,215,0,0.3)',
-    border: '1px solid rgba(255,215,0,0.7)',
+    backgroundColor: config.backgroundColor,
+    border: `1px solid ${config.backgroundColor.substring(0, 7)}b3`, // Добавляем прозрачность
     borderRadius: '2px'
   });
 }
@@ -86,13 +86,19 @@ function findUuidMatches(document: vscode.TextDocument, uuid: string) {
   return matches;
 }
 
-function highlightMatchInEditor(file: vscode.Uri, match: { range: vscode.Range }, decorationType: vscode.TextEditorDecorationType) {
+function highlightMatchInEditor(file: vscode.Uri, match: { range: vscode.Range }) {
   vscode.window.visibleTextEditors.forEach(editor => {
     if (editor.document.uri.toString() === file.toString()) {
-      editor.setDecorations(decorationType, [{
+      // Используем встроенный декор для референсов
+      const decor = vscode.window.createTextEditorDecorationType({
+        backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground'),
+        border: `1px solid ${new vscode.ThemeColor('editor.findMatchHighlightBorder')}`
+      });
+      editor.setDecorations(decor, [{
         range: match.range,
         hoverMessage: `Reference to UUID`
       }]);
+      setTimeout(() => decor.dispose(), 5000); // Автоочистка
     }
   });
 }
