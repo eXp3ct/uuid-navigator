@@ -50,6 +50,6 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           name: "v${{ steps.get_version.outputs.VERSION }}"
-          body: "Automatic release for UUID Navigator extension"
+          body: CHANGELOG.md
           files: |
             *.vsix
