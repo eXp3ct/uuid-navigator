@@ -2,49 +2,48 @@ name: Publish Extension
 
 on:
   pull_request:
-    branches: [ main ]
-    types: [ closed ]
+    branches: [main]
+    types: [closed]
 
 jobs:
   publish:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    environment: production
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install dependencies
         run: |
           yarn install --frozen-lockfile
-          yarn global add vsce
+          yarn add @vscode/vsce@latest --dev
 
       - name: Build extension
         run: |
           yarn compile
           yarn package
           
-      - name: Get version
-        id: version
-        run: |
-          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: Verify publisher
+        run: npx @vscode/vsce verify
 
       - name: Publish to Marketplace
-        run: npx vsce publish -p ${{ secrets.VSCE_TOKEN }}
+        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_TOKEN }}
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+          PUBLISHER_NAME: ${{ vars.PUBLISHER_NAME || 'your-publisher-name' }}
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         if: success()
         with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          name: "Version ${{ steps.version.outputs.VERSION }}"
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
           files: |
             *.vsix
