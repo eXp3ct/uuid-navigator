@@ -1,6 +1,6 @@
 # UUID Navigator для VS Code
 
-![Логотип](images/icon.png)  
+![Логотип](https://raw.githubusercontent.com/eXp3ct/uuid-navigator/master/images/icon.png)\
 Расширение для удобной работы с UUID в SQL-файлах: подсветка, навигация и поиск.
 
 ## 📦 Установка
