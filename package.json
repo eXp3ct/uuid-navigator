@@ -8,7 +8,7 @@
   },
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -42,6 +42,11 @@
     "configuration": {
       "title": "UUID Navigator",
       "properties": {
+        "uuidNavigator.applyStyles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply styles for highlight"
+        },
         "uuidNavigator.highlightColor": {
           "type": "string",
           "default": "#569CD6",
