@@ -1,9 +1,8 @@
-# Change Log
+# Changelog
 
-All notable changes to the "uuid-navigator" extension will be documented in this file.
+## [0.0.5] - 2024-07-24
+### Added
+- Настройка для применения стиля или нет
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+## [0.0.3] - 2025-07-24
+- Первая публичная версия
