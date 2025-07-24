@@ -65,6 +65,7 @@
       }
     }
   },
+  "publisher": "eXp3ct",
   "scripts": {
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",
