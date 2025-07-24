@@ -1,7 +1,13 @@
 {
   "name": "uuid-navigator",
-  "displayName": "uuid-navigator",
-  "description": "Helps navigate UUIDs in SQL files",
+  "displayName": "UUID Navigator",
+  "description": "Подсветка и навигация по UUID в SQL-файлах",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eXp3ct/uuid-navigator.git"
+  },
+  "icon": "images/icon.png",
+  "license": "MIT",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.102.0"
