@@ -40,7 +40,7 @@ jobs:
           echo "Using version: ${{ steps.get_version.outputs.VERSION }}"
 
       - name: Verify publisher
-        run: npx @vscode/vsce verify-pat ${{ vars.PUBLISHER_NAME }}
+        run: npx @vscode/vsce verify-pat ${{ vars.PUBLISHER_NAME }} ${{ secrets.VSCE_TOKEN }}
 
       - name: Publish to Marketplace
         run: npx @vscode/vsce publish -p ${{ secrets.VSCE_TOKEN }}
