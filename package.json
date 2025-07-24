@@ -8,7 +8,7 @@
   },
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -59,7 +59,7 @@
         },
         "uuidNavigator.showNotifications": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Show notifications when finding UUID references"
         }
       }
@@ -80,14 +80,15 @@
     "publish:major": "vsce publish major"
   },
   "devDependencies": {
-    "@types/vscode": "^1.102.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
+    "vsce": "^2.15.0"
   }
 }
