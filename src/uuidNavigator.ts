@@ -20,7 +20,7 @@ export function clearReferenceHighlights() {
 
 export async function findUuidReferences(document: vscode.TextDocument, position: vscode.Position) {
   const range = getUuidRangeAtPosition(document, position);
-  if (!range) return null;
+  if (!range) {return null;}
 
   const uuid = document.getText(range).replace(/["']/g, '');
   return await findUuidLocations(uuid);
