@@ -6,6 +6,9 @@
     "type": "git",
     "url": "https://github.com/eXp3ct/uuid-navigator.git"
   },
+  "homepage": "https://github.com/eXp3ct/uuid-navigator#readme",
+  "bugs": "https://github.com/eXp3ct/uuid-navigator/issues",
+  "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
   "version": "0.0.5",
