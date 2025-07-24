@@ -56,7 +56,7 @@ UUID автоматически выделяются в SQL-файлах.
 1. **Клонируйте репозиторий**:
 
 ```bash
-git clone https://github.com/your-repo/uuid-navigator.git
+git clone https://github.com/eXp3ct/uuid-navigator.git
 cd uuid-navigator
 ```
 2. **Установите зависимости:**
