@@ -19,16 +19,20 @@
       {
         "command": "uuid-navigator.findUuids",
         "title": "Find all UUIDs in current file"
+      },
+      {
+        "command": "uuid-navigator.clearHighlights",
+        "title": "Clear UUID highlights"
       }
     ],
-    "menus": {
-      "commandPalette": [
-        {
-          "command": "uuid-navigator.findUuids",
-          "when": "editorLangId == sql || editorLangId == mssql"
-        }
-      ]
-    }
+    "languages": [
+      {
+        "id": "mssql",
+        "aliases": [
+          "MS SQL"
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "yarn run compile",
