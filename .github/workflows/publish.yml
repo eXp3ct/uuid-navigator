@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish:
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && !contains(github.event.pull_request.title, '[skip publish]')
     runs-on: ubuntu-latest
     environment: production
 
@@ -41,7 +41,6 @@ jobs:
           args: "publish -p $VSCE_TOKEN"
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
-
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
