@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "0.0.5",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -32,6 +32,10 @@
       {
         "command": "uuid-navigator.clearHighlights",
         "title": "Clear UUID highlights"
+      },
+      {
+        "command": "uuid-navigator.refreshBlameCache",
+        "title": "Refresh UUID Blame Cache"
       }
     ],
     "languages": [
@@ -69,6 +73,33 @@
           "type": "boolean",
           "default": false,
           "description": "Show notifications when finding UUID references"
+        },
+        "uuidNavigator.showBlameOnHover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show blame information when hovering over UUIDs"
+        },
+        "uuidNavigator.blameTemplate": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "className",
+              "uuid",
+              "lineComment",
+              "location",
+              "goToButton"
+            ]
+          },
+          "default": [
+            "className",
+            "uuid",
+            "lineComment",
+            "location",
+            "goToButton"
+          ],
+          "description": "Template for blame message. Select which elements to show and their order",
+          "scope": "resource"
         }
       }
     }
