@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ExtensionConfig, getConfig } from './config';
+import { getConfig } from './config';
 
 let decorationType: vscode.TextEditorDecorationType;
 let currentEditor: vscode.TextEditor | undefined;
@@ -32,7 +32,7 @@ function updateDecorationType() {
 export function highlightAllUuids(editor = vscode.window.activeTextEditor) {
   if (!editor || !isSqlFile(editor.document)) {return;}
   const { applyStyles } = getConfig();
-  if (!applyStyles) return;
+  if (!applyStyles) {return;}
   const decorations = findUuidDecorations(editor.document);
   editor.setDecorations(decorationType, decorations);
 }

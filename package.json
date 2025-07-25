@@ -78,7 +78,7 @@
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "yarn run compile && yarn run lint",
+    "pretest": "yarn run compile && yarn run lint --fix",
     "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package",
@@ -98,5 +98,8 @@
     "eslint": "^9.25.1",
     "typescript": "^5.8.3",
     "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "@types/sinon": "^17.0.4"
   }
 }
