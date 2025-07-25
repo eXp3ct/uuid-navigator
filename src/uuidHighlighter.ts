@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ExtensionConfig, getConfig } from './config';
+import { getConfig } from './config';
 
 let decorationType: vscode.TextEditorDecorationType;
 let currentEditor: vscode.TextEditor | undefined;

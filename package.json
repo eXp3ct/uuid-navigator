@@ -98,5 +98,8 @@
     "eslint": "^9.25.1",
     "typescript": "^5.8.3",
     "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "@types/sinon": "^17.0.4"
   }
 }
