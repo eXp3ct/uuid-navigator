@@ -1,5 +1,3 @@
-# Только вы можете мержить в main (для контроля)
 main @eXp3ct
-
-# Вы же работаете над feature ветками
+dev @eXp3ct
 feature/* @eXp3ct
