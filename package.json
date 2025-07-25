@@ -78,7 +78,7 @@
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "yarn run compile && yarn run lint",
+    "pretest": "yarn run compile && yarn run lint --fix",
     "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package",
