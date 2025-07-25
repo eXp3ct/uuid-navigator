@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { UuidBlameInfo } from './types';
 import { UuidBlameFinder } from './uuidBlameFinder';
 import { getConfig } from './config';
+import { BlameTemplateParser } from './templateParser';
 
 export class UuidBlameProvider {
   private hoverProviderDisposable: vscode.Disposable | undefined;
@@ -73,17 +74,13 @@ export class UuidBlameProvider {
   }
 
   private createBlameMessage(blameInfo: UuidBlameInfo): vscode.MarkdownString {
-    const markdown = new vscode.MarkdownString();
-    markdown.appendMarkdown(`### UUID Reference\n\n`);
-    markdown.appendMarkdown(`**UUID:** \`${blameInfo.uuid}\`\n\n`);
-    markdown.appendMarkdown(`**Description:** ${blameInfo.comment}\n\n`);
-    markdown.appendMarkdown(`**Location:** ${vscode.workspace.asRelativePath(blameInfo.filePath)}:${blameInfo.lineNumber}`);
+    const config = getConfig();
+    const defaultTemplate = ['className', 'uuid', 'lineComment', 'location', 'goToButton'];
+    const template = config.blameTemplate || defaultTemplate;
 
-    // Добавляем команду для перехода к определению
-    markdown.appendMarkdown(`\n\n[Go to definition](command:uuid-navigator.goToDefinition?${encodeURIComponent(JSON.stringify(blameInfo))})`);
-
-    markdown.isTrusted = true; // Разрешаем выполнение команд в Markdown
-
+    const content = BlameTemplateParser.parse(template, blameInfo);
+    const markdown = new vscode.MarkdownString(content);
+    markdown.isTrusted = true;
     return markdown;
   }
 

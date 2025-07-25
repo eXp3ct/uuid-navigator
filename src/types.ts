@@ -7,6 +7,7 @@ export interface ExtensionConfig {
   backgroundColor: string; // Фон UUID (HEX с альфа-каналом)
   showNotifications: boolean;
   showBlameOnHover: boolean;
+  blameTemplate?: string[];
 }
 
 export interface ExtensionContext extends vscode.ExtensionContext {

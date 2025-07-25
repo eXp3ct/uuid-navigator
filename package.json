@@ -76,8 +76,30 @@
         },
         "uuidNavigator.showBlameOnHover": {
           "type": "boolean",
-          "default": false,
-          "description": "Show blame information (comment and file) when hovering over UUIDs"
+          "default": true,
+          "description": "Show blame information when hovering over UUIDs"
+        },
+        "uuidNavigator.blameTemplate": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "className",
+              "uuid",
+              "lineComment",
+              "location",
+              "goToButton"
+            ]
+          },
+          "default": [
+            "className",
+            "uuid",
+            "lineComment",
+            "location",
+            "goToButton"
+          ],
+          "description": "Template for blame message. Select which elements to show and their order",
+          "scope": "resource"
         }
       }
     }
