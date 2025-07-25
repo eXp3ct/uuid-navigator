@@ -17,7 +17,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
 		treeDataProvider: treeProvider
 	});
-	console.log('TreeView created:', treeView);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('uuid-navigator.findUuids', () => highlightAllUuids()),
@@ -33,7 +32,6 @@ export function activate(context: vscode.ExtensionContext) {
 		// Refresh command
 		vscode.commands.registerCommand('uuid-navigator.refreshExplorer', async () => {
 			const { classes } = await sqlParser.parseAllSqlFiles();
-			console.log('Parsed classes:', classes.length); // Сколько классов найдено?
 			treeProvider.refresh(classes);
 		}),
 
@@ -42,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
 				editor.edit(editBuilder => {
-					editBuilder.insert(editor.selection.active, `'${uuid}'`);
+					editBuilder.insert(editor.selection.active, uuid);
 				});
 			}
 		}),
@@ -59,6 +57,10 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showErrorMessage(`Failed to show UUID Explorer: ${error}`);
 				console.error(error);
 			}
+		}),
+
+		vscode.commands.registerCommand('uuid-navigator.focusTreeView', async () => {
+			await vscode.commands.executeCommand('uuidExplorer.focus');
 		})
 	);
 

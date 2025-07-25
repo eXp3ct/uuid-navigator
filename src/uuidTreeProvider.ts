@@ -18,8 +18,6 @@ export class UuidTreeProvider implements vscode.TreeDataProvider<UuidTreeItem> {
 
   getChildren(element?: UuidTreeItem): Thenable<UuidTreeItem[]> {
     if (!element) {
-      // Корневой уровень - показываем классы
-      console.log('Root level - classes:', this.classes.length);
       return Promise.resolve(
         this.classes.map(cls => new UuidTreeItem(
           cls.name,
@@ -33,9 +31,7 @@ export class UuidTreeProvider implements vscode.TreeDataProvider<UuidTreeItem> {
     }
 
     if (element.contextValue === 'class') {
-      // Показываем свойства класса
       const cls = element.data as ClassInfo;
-      console.log(`Class "${cls.name}" properties:`, cls.properties.length);
 
       return Promise.resolve(
         cls.properties.map(prop => new UuidTreeItem(
