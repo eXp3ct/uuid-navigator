@@ -9,8 +9,11 @@ export function getConfig(): ExtensionConfig {
     highlightColor: config.get('highlightColor', '#569CD6'),
     underline: config.get('underline', true),
     backgroundColor: config.get('backgroundColor', '#64c8ff1a'), // HEX с альфа-каналом
-    showNotifications: config.get('showNotifications', true)
+    showNotifications: config.get('showNotifications', true),
+    showBlameOnHover: config.get('showBlameOnHover', false)
   };
 }
 
 export { ExtensionConfig };
+
+
