@@ -15,6 +15,13 @@ export interface PropertyInfo {
   sourceClassId?: string;
 }
 
+export interface ClassPropertyLink {
+  id?: string;
+  classId: string;
+  propertyId: string;
+  // Дополнительные поля из classes_property_definitions при необходимости
+}
+
 export class SqlParser {
   private normalizeSql(content: string): string {
     // Удаляем комментарии
@@ -69,7 +76,6 @@ export class SqlParser {
         values: valueGroups
       });
     }
-
     return inserts;
   }
 
@@ -79,9 +85,13 @@ export class SqlParser {
   }> {
     const classes: ClassInfo[] = [];
     const properties: PropertyInfo[] = [];
+    const links: ClassPropertyLink[] = [];
     const classMap = new Map<string, ClassInfo>();
+    const propertyMap = new Map<string, PropertyInfo>();
 
     const files = await vscode.workspace.findFiles('**/*.sql');
+
+    // Первый проход: сбор всех данных
     for (const file of files) {
       try {
         const document = await vscode.workspace.openTextDocument(file);
@@ -103,11 +113,28 @@ export class SqlParser {
                 const property = this.parseProperty(insert.columns, values);
                 if (property) {
                   properties.push(property);
+                  propertyMap.set(property.id, property);
                 }
               }
             } else if (insert.tableName === 'classes_property_definitions') {
               for (const values of insert.values) {
-                this.linkClassProperty(insert.columns, values, classMap, properties);
+                // Пропускаем только строки, где ВСЕ значения - функции
+                const allValuesAreFunctions = values.every(v =>
+                  v.includes('gen_random_uuid(') ||
+                  v.includes(':my_utc_now') ||
+                  v.includes(':my_admin_id')
+                );
+
+                if (allValuesAreFunctions) {
+                  console.log('Skipping fully functional row:', values);
+                  continue;
+                }
+
+                const link = this.parseLink(insert.columns, values);
+                if (link) {
+                  links.push(link);
+                  console.log('Found valid link:', link);
+                }
               }
             }
           } catch (error) {
@@ -118,8 +145,12 @@ export class SqlParser {
         console.error(`Error processing file ${file.fsPath}:`, error);
       }
     }
-    console.log('Found classes:', classes);
-    console.log('Found properties:', properties);
+
+    console.log(links)
+    // Второй проход: связывание
+    this.linkClassesAndProperties(classes, properties, links);
+
+
     return { classes, properties };
   }
 
@@ -156,21 +187,65 @@ export class SqlParser {
     };
   }
 
-  private linkClassProperty(columns: string[], values: string[], classMap: Map<string, ClassInfo>, properties: PropertyInfo[]) {
-    const classId = this.getValue(columns, values, 'class_id');
-    const propertyId = this.getValue(columns, values, 'property_definition_id');
+  private parseLink(columns: string[], values: string[]): ClassPropertyLink | null {
+    // Создаем копию значений для безопасной обработки
+    const processedValues = [...values];
 
-    if (!classId || !propertyId) return;
-
-    const cls = classMap.get(classId);
-    const prop = properties.find(p => p.id === propertyId);
-
-    if (cls && prop) {
-      // Убедитесь, что свойство не добавлено ранее
-      if (!cls.properties.some(p => p.id === prop.id)) {
-        cls.properties.push(prop);
+    // Заменяем функции на пустые строки (они нас не интересуют)
+    for (let i = 0; i < processedValues.length; i++) {
+      if (processedValues[i].includes('gen_random_uuid(') ||
+        processedValues[i].includes(':my_utc_now') ||
+        processedValues[i].includes(':my_admin_id')) {
+        processedValues[i] = '';
       }
     }
+
+    // Получаем ID класса и свойства (уже без функций)
+    const classId = this.getValue(columns, processedValues, 'class_id');
+    const propertyId = this.getValue(columns, processedValues, 'property_definition_id');
+
+    // Проверяем что это валидные UUID
+    if (!this.isValidUuid(classId) || !this.isValidUuid(propertyId)) {
+      console.log('Skipping invalid UUIDs:', { classId, propertyId });
+      return null;
+    }
+
+    return {
+      classId: classId!,
+      propertyId: propertyId!
+    };
+  }
+  private isValidUuid(uuid: string | null): boolean {
+    if (!uuid) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+  }
+  //FIXME: Исправить привязку свойств к классу
+  private linkClassesAndProperties(
+    classes: ClassInfo[],
+    properties: PropertyInfo[],
+    links: ClassPropertyLink[]
+  ) {
+    const propertyMap = new Map(properties.map(p => [p.id, p]));
+    const classMap = new Map(classes.map(c => [c.id, c]));
+
+    let linkedCount = 0;
+
+    links.forEach(link => {
+      const cls = classMap.get(link.classId);
+      const prop = propertyMap.get(link.propertyId);
+
+      if (cls && prop) {
+        if (!cls.properties.some(p => p.id === prop.id)) {
+          cls.properties.push(prop);
+          linkedCount++;
+          console.log(`Linked: ${cls.name} ↔ ${prop.name}`);
+        }
+      } else {
+        console.warn('Broken link - missing class or property:', link);
+      }
+    });
+
+    console.log(`Successfully linked ${linkedCount} properties`);
   }
 
   private getValue(columns: string[], values: string[], column: string): string | null {
