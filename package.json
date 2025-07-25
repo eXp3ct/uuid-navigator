@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -36,6 +36,25 @@
       {
         "command": "uuid-navigator.refreshBlameCache",
         "title": "Refresh UUID Blame Cache"
+      },
+      {
+        "command": "uuid-navigator.showExplorer",
+        "title": "Show UUID Explorer",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.refreshExplorer",
+        "title": "Refresh UUID Explorer",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.insertUuid",
+        "title": "Insert UUID",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.focusTreeView",
+        "title": "UUID Navigator: Focus Tree View"
       }
     ],
     "languages": [
@@ -102,7 +121,37 @@
           "scope": "resource"
         }
       }
-    }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "uuidExplorer",
+          "name": "UUID Explorer",
+          "icon": "https://www.flaticon.com/free-icons/navigation"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "uuidExplorer",
+        "contents": "No UUID classes found. [Refresh Explorer](command:uuid-navigator.refreshExplorer)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "uuid-navigator.refreshExplorer",
+          "when": "view == uuidExplorer",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "key": "ctrl+alt+u",
+        "command": "uuid-navigator.focusTreeView"
+      }
+    ]
   },
   "publisher": "eXp3ct",
   "scripts": {
@@ -131,6 +180,7 @@
     "vsce": "^2.15.0"
   },
   "dependencies": {
-    "@types/sinon": "^17.0.4"
+    "@types/sinon": "^17.0.4",
+    "pgsql-parser": "^17.7.10"
   }
 }

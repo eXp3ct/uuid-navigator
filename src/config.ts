@@ -10,7 +10,7 @@ export function getConfig(): ExtensionConfig {
     underline: config.get('underline', true),
     backgroundColor: config.get('backgroundColor', '#64c8ff1a'), // HEX с альфа-каналом
     showNotifications: config.get('showNotifications', true),
-    showBlameOnHover: config.get('showBlameOnHover', false)
+    showBlameOnHover: config.get('showBlameOnHover', true)
   }
 
   if (baseConfig.showBlameOnHover) {
