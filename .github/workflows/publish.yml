@@ -49,6 +49,6 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           name: "v${{ steps.get_version.outputs.VERSION }}"
-          body-path: CHANGELOG.md
+          body_path: CHANGELOG.md
           files: |
             *.vsix
