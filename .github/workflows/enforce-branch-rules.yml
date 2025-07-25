@@ -1,0 +1,19 @@
+name: Enforce Branch Rules
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if source branch is dev
+        run: |
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "ERROR: Only 'dev' branch can be merged into 'main'"
+            echo "Current source branch: ${{ github.head_ref }}"
+            exit 1
+          else
+            echo "✓ Source branch is 'dev' - allowed to merge into 'main'"
+          fi

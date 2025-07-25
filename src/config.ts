@@ -1,12 +1,6 @@
 import * as vscode from 'vscode';
+import { ExtensionConfig } from './types';
 
-export interface ExtensionConfig {
-  applyStyles: boolean;
-  highlightColor: string;  // Цвет текста UUID
-  underline: boolean;      // Подчёркивание
-  backgroundColor: string; // Фон UUID (HEX с альфа-каналом)
-  showNotifications: boolean;
-}
 
 export function getConfig(): ExtensionConfig {
   const config = vscode.workspace.getConfiguration('uuidNavigator');
@@ -18,3 +12,5 @@ export function getConfig(): ExtensionConfig {
     showNotifications: config.get('showNotifications', true)
   };
 }
+
+export { ExtensionConfig };

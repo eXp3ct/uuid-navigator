@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { ExtensionConfig, getConfig } from './config';
+import { getConfig } from './config';
+import {ExtensionConfig} from './types';
 
 let referenceDecorations: vscode.TextEditorDecorationType[] = [];
 
