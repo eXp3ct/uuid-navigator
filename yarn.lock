@@ -157,6 +157,11 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@pgsql/types@^17.6.0", "@pgsql/types@^17.6.1":
+  version "17.6.1"
+  resolved "https://registry.yarnpkg.com/@pgsql/types/-/types-17.6.1.tgz#fcbe4910321bd0dfa38aa0c26d87eff7b098d0e9"
+  integrity sha512-Hk51+nyOxS7Dy5oySWywyNZxo5HndX1VDXT4ZEBD+p+vvMFM2Vc+sKSuByCiI8banou4edbgdnOC251IOuq7QQ==
+
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
@@ -1433,6 +1438,13 @@ levn@^0.4.1:
     prelude-ls "^1.2.1"
     type-check "~0.4.0"
 
+libpg-query@17.5.5:
+  version "17.5.5"
+  resolved "https://registry.yarnpkg.com/libpg-query/-/libpg-query-17.5.5.tgz#6446641f0a2dc0ec12fccb1bbd14374ae191cece"
+  integrity sha512-vzD5sjv1Kqf5EtoxzO1pcL43Y5k9o84wmPWAxomhhBS1crEgLlkwuVi28aSE5SGz7UZOu+KqO5eLmGPt1ySGRg==
+  dependencies:
+    "@pgsql/types" "^17.6.0"
+
 lie@~3.3.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/lie/-/lie-3.3.0.tgz#dcf82dee545f46074daf200c7c1c5a08e0f40f6a"
@@ -1775,6 +1787,22 @@ pend@~1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/pend/-/pend-1.2.0.tgz#7a57eb550a6783f9115331fcf4663d5c8e007a50"
   integrity sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==
+
+pgsql-deparser@^17.10.0:
+  version "17.10.0"
+  resolved "https://registry.yarnpkg.com/pgsql-deparser/-/pgsql-deparser-17.10.0.tgz#a1a17884d79a622188483760a52e73a3d51fd61e"
+  integrity sha512-haKT+yrPzJNhBVhJZE0cDCm0ySxNJaKd/obD7epBoc27bjbE8RYlpMaHGNUI2wPjcLNOgC6d2/hJ90PY8eM1kg==
+  dependencies:
+    "@pgsql/types" "^17.6.1"
+
+pgsql-parser@^17.7.10:
+  version "17.7.10"
+  resolved "https://registry.yarnpkg.com/pgsql-parser/-/pgsql-parser-17.7.10.tgz#a7f8a74b71f91ca23b3c04e77441616256e048f6"
+  integrity sha512-N29K0fCP8yCEa36N77bfdboYD4QJ4UngS5cg1cw2yRM9fR3y9H6cFIALruKz2ndOXVc31PSPOg200egCL7JwPA==
+  dependencies:
+    "@pgsql/types" "^17.6.1"
+    libpg-query "17.5.5"
+    pgsql-deparser "^17.10.0"
 
 picocolors@^1.1.1:
   version "1.1.1"
