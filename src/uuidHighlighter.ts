@@ -48,7 +48,7 @@ function findUuidDecorations(document: vscode.TextDocument) {
     const endPos = document.positionAt(match.index + match[0].length);
     decorations.push({
       range: new vscode.Range(startPos, endPos),
-      hoverMessage: `UUID: ${match[0].replace(/["']/g, '')}\n\nCtrl+Click to find references`
+      //hoverMessage: `UUID: ${match[0].replace(/["']/g, '')}\n\nCtrl+Click to find references`
     });
   }
 
