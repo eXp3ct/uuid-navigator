@@ -55,11 +55,6 @@
       {
         "command": "uuid-navigator.focusTreeView",
         "title": "UUID Navigator: Focus Tree View"
-      },
-      {
-        "command": "uuid-navigator.goToDefinition",
-        "title": "Go to UUID Definition",
-        "category": "UUID Navigator"
       }
     ],
     "languages": [
@@ -108,24 +103,18 @@
           "items": {
             "type": "string",
             "enum": [
-              "type",
               "className",
-              "propertyName",
               "uuid",
-              "classUuid",
-              "description",
-              "dataType",
+              "lineComment",
+              "location",
               "goToButton"
             ]
           },
           "default": [
-            "type",
             "className",
-            "classUuid",
             "uuid",
-            "propertyName",
-            "description",
-            "dataType",
+            "lineComment",
+            "location",
             "goToButton"
           ],
           "description": "Template for blame message. Select which elements to show and their order",
@@ -191,9 +180,7 @@
     "vsce": "^2.15.0"
   },
   "dependencies": {
-    "@types/lodash": "^4.17.20",
     "@types/sinon": "^17.0.4",
-    "lodash": "^4.17.21",
     "pgsql-parser": "^17.7.10"
   }
 }

@@ -1,100 +1,57 @@
+import * as vscode from 'vscode';
 import { UuidBlameInfo } from './types';
-import { ClassInfo, PropertyInfo } from './sqlParser';
 
 export class UuidBlameFinder {
   private cachedBlameInfo: UuidBlameInfo[] = [];
 
-  private classesInfo: { classes: ClassInfo[], properties: PropertyInfo[] } = {
-    classes: [],
-    properties: []
-  };
-
-  constructor(
-    private classes: ClassInfo[],
-    private properties: PropertyInfo[]
-  ) {
-    this.classesInfo.classes = this.classes;
-    this.classesInfo.properties = this.properties;
-  }
-
   async initialize() {
-    await this.findUuidsInClassesAndProperties();
+    await this.findUuidsWithComments();
   }
 
-  async findUuidsInClassesAndProperties(): Promise<UuidBlameInfo[]> {
+  async findUuidsWithComments(): Promise<UuidBlameInfo[]> {
     this.cachedBlameInfo = [];
+    const files = await vscode.workspace.findFiles('**/*.sql');
 
-    // Добавляем информацию о классах
-    for (const cls of this.classesInfo.classes) {
-      this.cachedBlameInfo.push({
-        uuid: cls.id,
-        className: cls.name,
-        description: cls.description,
-        type: 'class'
-      });
-    }
-
-    // Добавляем информацию о свойствах
-    for (const prop of this.classesInfo.properties) {
-      this.cachedBlameInfo.push({
-        uuid: prop.id,
-        propertyName: prop.name,
-        description: prop.description,
-        type: 'property',
-        dataType: prop.dataType
-      });
+    for (const file of files) {
+      const document = await vscode.workspace.openTextDocument(file);
+      const blameInfos = this.parseDocumentForUuidComments(document);
+      this.cachedBlameInfo.push(...blameInfos);
     }
 
     return this.cachedBlameInfo;
   }
 
-  getBlameInfo(uuid: string): UuidBlameInfo | undefined {
-    // Ищем UUID в кэше
-    const cachedInfo = this.cachedBlameInfo.find(info => info.uuid === uuid);
-    if (!cachedInfo) return undefined;
+  private parseDocumentForUuidComments(document: vscode.TextDocument): UuidBlameInfo[] {
+    const blameInfos: UuidBlameInfo[] = [];
+    const text = document.getText();
+    const lines = text.split('\n');
 
-    // Создаем базовый объект с информацией
-    const result: UuidBlameInfo = {
-      uuid,
-      type: cachedInfo.type,
-      filePath: cachedInfo.filePath,
-      lineNumber: cachedInfo.lineNumber,
-      position: cachedInfo.position,
-      dataType: cachedInfo.dataType
-    };
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const uuidMatch = line.match(/'([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})'/);
 
-    // Для всех UUID добавляем имя и описание
-    if (cachedInfo.type === 'property') {
-      const property = this.classesInfo.properties.find(p => p.id === uuid);
-      if (property) {
-        result.propertyName = property.name;
-        result.description = property.description;
-        result.dataType = property.dataType
-        // Находим родительский класс для свойства
-        const classInfo = this.classesInfo.classes.find(c =>
-          c.properties.some(p => p.id === uuid) ||
-          c.id === property.sourceClassId
-        );
-
-        if (classInfo) {
-          result.className = classInfo.name;
-          result.classUuid = classInfo.id;
+      if (uuidMatch && i > 0) {
+        const prevLine = lines[i - 1].trim();
+        if (prevLine.startsWith('--')) {
+          const comment = prevLine.substring(2).trim();
+          blameInfos.push({
+            uuid: uuidMatch[1],
+            comment: comment,
+            filePath: document.uri.fsPath,
+            lineNumber: i + 1 // 1-based
+          });
         }
-      }
-    } else if (cachedInfo.type === 'class') {
-      const classInfo = this.classesInfo.classes.find(c => c.id === uuid);
-      if (classInfo) {
-        result.className = classInfo.name;
-        result.description = classInfo.description;
       }
     }
 
-    return Object.keys(result).length > 0 ? result : undefined;
+    return blameInfos;
   }
 
-
+  getBlameInfo(uuid: string): UuidBlameInfo | undefined {
+    return this.cachedBlameInfo.find(info => info.uuid === uuid);
+  }
 
   async refreshCache() {
-    await this.findUuidsInClassesAndProperties();
+    await this.findUuidsWithComments();
   }
 }

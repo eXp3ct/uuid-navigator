@@ -1,55 +1,27 @@
-import { DataType, UuidBlameInfo } from './types';
+import * as vscode from 'vscode';
+import { UuidBlameInfo } from './types';
 
 export class BlameTemplateParser {
+  private static elementTemplates = {
+    className: (info: UuidBlameInfo) => `### Class name: ${this.extractClassName(info.filePath)}`,
+    uuid: (info: UuidBlameInfo) => `**UUID:** \`${info.uuid}\``,
+    lineComment: (info: UuidBlameInfo) => `**Description:** ${info.comment}`,
+    location: (info: UuidBlameInfo) => `**Location:** ${vscode.workspace.asRelativePath(info.filePath)}:${info.lineNumber}`,
+    goToButton: (info: UuidBlameInfo) => `[Go to definition](command:uuid-navigator.goToDefinition?${encodeURIComponent(JSON.stringify(info))})`
+  };
+
   static parse(template: string[], blameInfo: UuidBlameInfo): string {
-    let result = '';
+    return template
+      .map(element => {
+        const templateFn = this.elementTemplates[element as keyof typeof this.elementTemplates];
+        return templateFn ? templateFn(blameInfo) : '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+  }
 
-    for (const item of template) {
-      switch (item) {
-        case 'type':
-          result += `**Type:** \`${blameInfo.type}\`\n\n`;
-          break;
-
-        case 'className':
-          if (blameInfo.className) {
-            result += `**Class:** \`${blameInfo.className}\`\n\n`;
-          }
-          break;
-
-        case 'propertyName':
-          if (blameInfo.propertyName) {
-            result += `**Property:** \`${blameInfo.propertyName}\`\n\n`;
-          }
-          break;
-
-        case 'uuid':
-          result += `**UUID:** \`${blameInfo.uuid}\`\n\n`;
-          break;
-
-        case 'description':
-          if (blameInfo.description) {
-            result += `**Description:** \`${blameInfo.description}\`\n\n`;
-          }
-          break;
-
-        case 'goToButton':
-          result += `[Go to Definition](command:uuid-navigator.goToDefinition?${encodeURIComponent(JSON.stringify(blameInfo.uuid))})\n\n`;
-          break;
-
-        case 'classUuid':
-          if (blameInfo.classUuid) {
-            result += `**Class UUID:** \`${blameInfo.classUuid}\`\n\n`;
-          }
-          break;
-
-        case 'dataType':
-          if(blameInfo.dataType !== undefined){
-            result += `**Data type:** \`${DataType[blameInfo.dataType]}\`\n\n`
-          }
-          break;
-      }
-    }
-
-    return result;
+  private static extractClassName(filePath: string): string {
+    const pathParts = filePath.split(/[\\\/]/);
+    return pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'Unknown';
   }
 }

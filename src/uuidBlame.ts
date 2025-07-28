@@ -3,19 +3,14 @@ import { UuidBlameInfo } from './types';
 import { UuidBlameFinder } from './uuidBlameFinder';
 import { getConfig } from './config';
 import { BlameTemplateParser } from './templateParser';
-import { ClassInfo, PropertyInfo, SqlParser } from './sqlParser';
 
 export class UuidBlameProvider {
   private hoverProviderDisposable: vscode.Disposable | undefined;
   private blameFinder: UuidBlameFinder;
   private configChangeDisposable: vscode.Disposable;
 
-  constructor(
-    private context: vscode.ExtensionContext,
-    private classes: ClassInfo[],
-    private properties: PropertyInfo[]
-  ) {
-    this.blameFinder = new UuidBlameFinder(this.classes, this.properties);
+  constructor(private context: vscode.ExtensionContext) {
+    this.blameFinder = new UuidBlameFinder();
     this.initialize();
 
     this.configChangeDisposable = vscode.workspace.onDidChangeConfiguration(e => {
@@ -80,14 +75,9 @@ export class UuidBlameProvider {
 
   private createBlameMessage(blameInfo: UuidBlameInfo): vscode.MarkdownString {
     const config = getConfig();
+    const defaultTemplate = ['className', 'uuid', 'lineComment', 'location', 'goToButton'];
+    const template = config.blameTemplate || defaultTemplate;
 
-    // Используем разные шаблоны для классов и свойств
-    const template = config.blameTemplate ||
-      (blameInfo.type === 'class'
-        ? config.defaultClassTemplate
-        : config.defaultPropertyTemplate);
-
-    if(template === undefined) return new vscode.MarkdownString('');
     const content = BlameTemplateParser.parse(template, blameInfo);
     const markdown = new vscode.MarkdownString(content);
     markdown.isTrusted = true;

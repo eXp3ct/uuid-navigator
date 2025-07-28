@@ -8,8 +8,6 @@ export interface ExtensionConfig {
   showNotifications: boolean;
   showBlameOnHover: boolean;
   blameTemplate?: string[];
-  defaultClassTemplate?: string[];
-  defaultPropertyTemplate?: string[];
 }
 
 export interface ExtensionContext extends vscode.ExtensionContext {
@@ -24,32 +22,7 @@ export interface ExtensionContext extends vscode.ExtensionContext {
 
 export interface UuidBlameInfo {
   uuid: string;
-  type: 'class' | 'property';
-  className?: string;       // Всегда показываем, если есть
-  classUuid?: string;       // Для свойств
-  propertyName?: string;    // Только для свойств
-  description?: string;     // Описание (для классов и свойств)
-  filePath?: string;
-  lineNumber?: number;
-  position?: number;
-  dataType?: DataType;
-}
-
-export enum DataType {
-  String = 0,
-  Int = 1,
-  Double = 2,
-  Boolean = 3,
-  Reference = 4,
-  DateTime = 5,
-  StringArray = 6,
-  IntArray = 7,
-  DoubleArray = 8,
-  ReferenceArray = 9,
-  Attachment = 10,
-  MultipleAttachment = 11,
-  Signature = 12,
-  MultipleSignature = 13,
-  Date = 14,
-  Time = 15
+  comment: string;
+  filePath: string;
+  lineNumber: number;
 }
