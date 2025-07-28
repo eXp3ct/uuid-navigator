@@ -55,6 +55,11 @@
       {
         "command": "uuid-navigator.focusTreeView",
         "title": "UUID Navigator: Focus Tree View"
+      },
+      {
+        "command": "uuid-navigator.goToDefinition",
+        "title": "Go to UUID Definition",
+        "category": "UUID Navigator"
       }
     ],
     "languages": [
@@ -103,18 +108,22 @@
           "items": {
             "type": "string",
             "enum": [
+              "type",
               "className",
+              "propertyName",
               "uuid",
-              "lineComment",
-              "location",
+              "classUuid",
+              "description",
               "goToButton"
             ]
           },
           "default": [
+            "type",
             "className",
+            "classUuid",
             "uuid",
-            "lineComment",
-            "location",
+            "propertyName",
+            "description",
             "goToButton"
           ],
           "description": "Template for blame message. Select which elements to show and their order",

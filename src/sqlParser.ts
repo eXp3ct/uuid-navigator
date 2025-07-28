@@ -5,6 +5,9 @@ export interface ClassInfo {
   name: string;
   description: string;
   properties: PropertyInfo[];
+  filePath?: string;
+  lineNumber?: number;
+  position?: number;
 }
 
 export interface PropertyInfo {
@@ -13,6 +16,9 @@ export interface PropertyInfo {
   description: string;
   dataType: number;
   sourceClassId?: string;
+  filePath?: string;
+  lineNumber?: number;
+  position?: number;
 }
 
 export interface ClassPropertyLink {
@@ -22,6 +28,8 @@ export interface ClassPropertyLink {
 }
 
 export class SqlParser {
+  private parsedData: { classes: ClassInfo[]; properties: PropertyInfo[] } | null = null;
+
   private normalizeSql(content: string): string {
     // Удаляем комментарии
     let normalized = content
@@ -46,18 +54,21 @@ export class SqlParser {
       .trim();
   }
 
-  private extractInserts(content: string): {
+  private extractInserts(content: string, filePath: string): {
     tableName: string;
     columns: string[];
     values: string[][];
+    positions: number[];
   }[] {
     const inserts: {
       tableName: string;
       columns: string[];
       values: string[][];
+      positions: number[];
     }[] = [];
 
-    const insertRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*((?:\([^)]+\)(?:\s*,\s*)?)*)/gi;
+    // Улучшенное регулярное выражение для обработки многострочных INSERT
+    const insertRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*((?:\((?:[^)]|\n)*\))(?:\s*,\s*\((?:[^)]|\n)*\))*)/gi;
 
     let match;
     while ((match = insertRegex.exec(content)) !== null) {
@@ -65,6 +76,7 @@ export class SqlParser {
       const columns = match[2].split(',').map(c => c.trim().replace(/["']/g, ''));
 
       const valuesRaw = match[3];
+      // Улучшенная обработка значений с учетом переносов строк
       const valueMatches = valuesRaw.match(/\(([^)]+)\)/g);
       if (!valueMatches) continue;
 
@@ -75,22 +87,34 @@ export class SqlParser {
           .map(val => this.normalizeValue(val))
       );
 
+      const positions: number[] = [];
+      const uuidRegex = /'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'/gi;
+      let uuidMatch;
+      while ((uuidMatch = uuidRegex.exec(valuesRaw)) !== null) {
+        positions.push(uuidMatch.index);
+      }
+
       inserts.push({
         tableName,
         columns,
-        values
+        values,
+        positions
       });
     }
 
     return inserts;
   }
+
   private stripQuotes(str: any): string {
     return str.replace("'", '')
   }
-  public async parseAllSqlFiles(): Promise<{
+  public async parseAllSqlFiles(forceRefresh: boolean = false): Promise<{
     classes: ClassInfo[];
     properties: PropertyInfo[];
   }> {
+    if (!forceRefresh && this.parsedData) {
+      return this.parsedData;
+    }
     const classes: ClassInfo[] = [];
     const properties: PropertyInfo[] = [];
     const links: ClassPropertyLink[] = [];
@@ -103,21 +127,38 @@ export class SqlParser {
       try {
         const document = await vscode.workspace.openTextDocument(file);
         const content = this.normalizeSql(document.getText());
-        const inserts = this.extractInserts(content);
+        const inserts = this.extractInserts(content, file.fsPath);
 
         for (const insert of inserts) {
           try {
             if (insert.tableName === 'classes') {
-              for (const values of insert.values) {
-                const classInfo = this.parseClass(insert.columns, values);
+              for (let i = 0; i < insert.values.length; i++) {
+                const values = insert.values[i];
+                const position = insert.positions[i];
+                const classInfo = this.parseClass(
+                  insert.columns,
+                  values,
+                  file.fsPath,
+                  document.positionAt(position).line + 1,
+                  position
+                );
                 if (classInfo) {
                   classes.push(classInfo);
                   classMap.set(classInfo.id, classInfo);
                 }
               }
             } else if (insert.tableName === 'property_definitions') {
-              for (const values of insert.values) {
-                const property = this.parseProperty(insert.columns, values);
+              for (let i = 0; i < insert.values.length; i++) {
+                const values = insert.values[i];
+                const position = insert.positions[i];
+                const property = this.parseProperty(
+                  insert.columns,
+                  values,
+                  file.fsPath,
+                  document.positionAt(position).line + 1,
+                  position
+                );
+                //console.log('Property: ', property)
                 if (property) {
                   properties.push(property);
                   propertyMap.set(property.id, property);
@@ -145,10 +186,11 @@ export class SqlParser {
 
     this.linkClassesAndProperties(classes, properties, links);
 
+    this.parsedData = { classes, properties };
     return { classes, properties };
   }
 
-  private parseClass(columns: string[], values: string[]): ClassInfo | null {
+  private parseClass(columns: string[], values: string[], filePath: string, lineNumber: number, position: number): ClassInfo | null {
     const id = this.getValue(columns, values, 'id');
     const name = this.getValue(columns, values, 'name');
     const description = this.getValue(columns, values, 'description');
@@ -159,25 +201,39 @@ export class SqlParser {
       id,
       name: this.stripQuotes(name),
       description: this.stripQuotes(description) || '',
-      properties: []
+      properties: [],
+      filePath,
+      lineNumber,
+      position
     };
   }
 
-  private parseProperty(columns: string[], values: string[]): PropertyInfo | null {
+  private parseProperty(columns: string[], values: string[], filePath: string, lineNumber: number, position: number): PropertyInfo | null {
     const id = this.getValue(columns, values, 'id');
     const name = this.getValue(columns, values, 'name');
     const description = this.getValue(columns, values, 'description');
     const dataType = parseInt(this.getValue(columns, values, 'data_type') || '0');
-    const sourceClassId = this.getValue(columns, values, 'source_class_id');
+    let sourceClassId = this.getValue(columns, values, 'source_class_id');
 
-    if (!id || !name) return null;
+    // Нормализация sourceClassId
+    if (sourceClassId === 'null' || sourceClassId === null || sourceClassId === 'undefined') {
+      sourceClassId = null;
+    }
+
+    if (!id || !name) {
+      console.warn('Invalid property - missing id or name:', { id, name });
+      return null;
+    }
 
     return {
       id,
       name: this.stripQuotes(name),
-      description: this.stripQuotes(description) || '',
+      description: this.stripQuotes(description || ''),
       dataType,
-      sourceClassId: sourceClassId || undefined
+      sourceClassId: sourceClassId || undefined,
+      filePath,
+      lineNumber,
+      position
     };
   }
 
@@ -204,8 +260,16 @@ export class SqlParser {
     const propertyMap = new Map(properties.map(p => [p.id, p]));
     const classMap = new Map(classes.map(c => [c.id, c]));
 
-    let linkedCount = 0;
+    // Собираем все ID свойств, которые должны быть связаны
+    const allPropertyIds = new Set<string>();
+    links.forEach(link => allPropertyIds.add(link.propertyId));
+    // Проверяем наличие всех свойств
+    const missingProperties = Array.from(allPropertyIds).filter(id => !propertyMap.has(id));
+    if (missingProperties.length > 0) {
+      console.warn('Missing property definitions for IDs:', missingProperties);
+    }
 
+    // Связываем только те свойства, которые существуют
     links.forEach(link => {
       const cls = classMap.get(link.classId);
       const prop = propertyMap.get(link.propertyId);
@@ -213,10 +277,15 @@ export class SqlParser {
       if (cls && prop) {
         if (!cls.properties.some(p => p.id === prop.id)) {
           cls.properties.push(prop);
-          linkedCount++;
+          console.log(`Linked property ${prop.name || prop.id} to class ${cls.name || cls.id}`);
         }
       } else {
-        console.warn('Broken link - missing class or property:', link);
+        if (!cls) {
+          console.warn(`Class not found for link: ${link.classId}`);
+        }
+        if (!prop) {
+          console.warn(`Property not found for link: ${link.propertyId}`);
+        }
       }
     });
   }
