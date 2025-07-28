@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { sortBy } from 'lodash';
+import { DataType } from './types';
 
 export interface ClassInfo {
   id: string;
@@ -258,7 +259,7 @@ export class SqlParser {
 
     allClasses = sortBy(allClasses, c => c.name);
     allProperties = sortBy(allProperties, p => p.name);
-    
+
     return { classes: allClasses, properties: allProperties };
   }
 
@@ -352,6 +353,9 @@ export class SqlParser {
     const name = this.getValue(columns, values, 'name');
     const description = this.getValue(columns, values, 'description');
     const dataType = parseInt(this.getValue(columns, values, 'data_type') || '0');
+    if (!(dataType in DataType)) {
+      console.warn(`Invalid dataType: ${dataType} for property ${id}`);
+    }
     let sourceClassId = this.getValue(columns, values, 'source_class_id');
 
     // Нормализация sourceClassId

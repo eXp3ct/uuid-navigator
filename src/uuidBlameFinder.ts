@@ -1,6 +1,5 @@
-import * as vscode from 'vscode';
 import { UuidBlameInfo } from './types';
-import { ClassInfo, PropertyInfo, SqlParser } from './sqlParser';
+import { ClassInfo, PropertyInfo } from './sqlParser';
 
 export class UuidBlameFinder {
   private cachedBlameInfo: UuidBlameInfo[] = [];
@@ -41,7 +40,8 @@ export class UuidBlameFinder {
         uuid: prop.id,
         propertyName: prop.name,
         description: prop.description,
-        type: 'property'
+        type: 'property',
+        dataType: prop.dataType
       });
     }
 
@@ -59,7 +59,8 @@ export class UuidBlameFinder {
       type: cachedInfo.type,
       filePath: cachedInfo.filePath,
       lineNumber: cachedInfo.lineNumber,
-      position: cachedInfo.position
+      position: cachedInfo.position,
+      dataType: cachedInfo.dataType
     };
 
     // Для всех UUID добавляем имя и описание
@@ -68,7 +69,7 @@ export class UuidBlameFinder {
       if (property) {
         result.propertyName = property.name;
         result.description = property.description;
-
+        result.dataType = property.dataType
         // Находим родительский класс для свойства
         const classInfo = this.classesInfo.classes.find(c =>
           c.properties.some(p => p.id === uuid) ||

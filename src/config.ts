@@ -23,6 +23,7 @@ export function getConfig(): ExtensionConfig {
         'uuid',
         'propertyName',
         'description',
+        'dataType',
         'goToButton'
       ])
     };

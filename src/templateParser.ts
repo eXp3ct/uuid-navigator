@@ -1,4 +1,4 @@
-import { UuidBlameInfo } from './types';
+import { DataType, UuidBlameInfo } from './types';
 
 export class BlameTemplateParser {
   static parse(template: string[], blameInfo: UuidBlameInfo): string {
@@ -39,6 +39,12 @@ export class BlameTemplateParser {
         case 'classUuid':
           if (blameInfo.classUuid) {
             result += `**Class UUID:** \`${blameInfo.classUuid}\`\n\n`;
+          }
+          break;
+
+        case 'dataType':
+          if(blameInfo.dataType !== undefined){
+            result += `**Data type:** \`${DataType[blameInfo.dataType]}\`\n\n`
           }
           break;
       }

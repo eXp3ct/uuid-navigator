@@ -114,6 +114,7 @@
               "uuid",
               "classUuid",
               "description",
+              "dataType",
               "goToButton"
             ]
           },
@@ -124,6 +125,7 @@
             "uuid",
             "propertyName",
             "description",
+            "dataType",
             "goToButton"
           ],
           "description": "Template for blame message. Select which elements to show and their order",

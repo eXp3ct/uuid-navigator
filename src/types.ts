@@ -32,4 +32,24 @@ export interface UuidBlameInfo {
   filePath?: string;
   lineNumber?: number;
   position?: number;
+  dataType?: DataType;
+}
+
+export enum DataType {
+  String = 0,
+  Int = 1,
+  Double = 2,
+  Boolean = 3,
+  Reference = 4,
+  DateTime = 5,
+  StringArray = 6,
+  IntArray = 7,
+  DoubleArray = 8,
+  ReferenceArray = 9,
+  Attachment = 10,
+  MultipleAttachment = 11,
+  Signature = 12,
+  MultipleSignature = 13,
+  Date = 14,
+  Time = 15
 }
