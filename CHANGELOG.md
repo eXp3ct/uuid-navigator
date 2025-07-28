@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0] - 2024-07-28
+### Added
+- DataType для hover message
+### Fixed
+- Парсинг файлов
+
 ## [1.1.0] - 2024-07-25
 ### Added
 - TreeView для просмотра и вставки uuid всех классов и их свойств

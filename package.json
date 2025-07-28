@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -55,6 +55,11 @@
       {
         "command": "uuid-navigator.focusTreeView",
         "title": "UUID Navigator: Focus Tree View"
+      },
+      {
+        "command": "uuid-navigator.goToDefinition",
+        "title": "Go to UUID Definition",
+        "category": "UUID Navigator"
       }
     ],
     "languages": [
@@ -103,18 +108,24 @@
           "items": {
             "type": "string",
             "enum": [
+              "type",
               "className",
+              "propertyName",
               "uuid",
-              "lineComment",
-              "location",
+              "classUuid",
+              "description",
+              "dataType",
               "goToButton"
             ]
           },
           "default": [
+            "type",
             "className",
+            "classUuid",
             "uuid",
-            "lineComment",
-            "location",
+            "propertyName",
+            "description",
+            "dataType",
             "goToButton"
           ],
           "description": "Template for blame message. Select which elements to show and their order",
@@ -180,7 +191,9 @@
     "vsce": "^2.15.0"
   },
   "dependencies": {
+    "@types/lodash": "^4.17.20",
     "@types/sinon": "^17.0.4",
+    "lodash": "^4.17.21",
     "pgsql-parser": "^17.7.10"
   }
 }
