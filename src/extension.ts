@@ -60,7 +60,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		// Refresh command
 		vscode.commands.registerCommand('uuid-navigator.refreshExplorer', async () => {
-			//const { classes } = await sqlParser.parseAllSqlFiles();
+			const { classes } = await sqlParser.parseAllSqlFiles(true);
 			treeProvider.refresh(classes);
 		}),
 
@@ -78,7 +78,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('uuid-navigator.showExplorer', async () => {
 			try {
 				// Сначала обновляем данные
-				await vscode.commands.executeCommand('uuid-navigator.refreshExplorer');
+				//await vscode.commands.executeCommand('uuid-navigator.refreshExplorer');
 
 				// Показываем представление (используем только ID представления)
 				await vscode.commands.executeCommand('uuidExplorer.focus');

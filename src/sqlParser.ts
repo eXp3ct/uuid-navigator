@@ -68,7 +68,7 @@ export class SqlParser {
     }[] = [];
 
     // Улучшенное регулярное выражение для обработки многострочных INSERT
-    const insertRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*((?:\((?:[^)]|\n)*\))(?:\s*,\s*\((?:[^)]|\n)*\))*)/gi;
+    const insertRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*((?:\((?:[^()]|\([^)]*\))*\))(?:\s*,\s*\((?:[^()]|\([^)]*\))*\))*)/gi;
 
     let match;
     while ((match = insertRegex.exec(content)) !== null) {
@@ -76,15 +76,16 @@ export class SqlParser {
       const columns = match[2].split(',').map(c => c.trim().replace(/["']/g, ''));
 
       const valuesRaw = match[3];
-      // Улучшенная обработка значений с учетом переносов строк
-      const valueMatches = valuesRaw.match(/\(([^)]+)\)/g);
+
+      // Улучшенная обработка значений с учетом вложенных скобок
+      const valueMatches = this.extractValuesWithNestedParentheses(valuesRaw);
       if (!valueMatches) continue;
 
       const values: string[][] = valueMatches.map(vGroup =>
         vGroup
           .slice(1, -1) // remove surrounding parentheses
-          .split(/(?<!\\),/g)
-          .map(val => this.normalizeValue(val))
+          .split(/(?<!\\),/) // split by commas not preceded by backslash
+          .map(val => this.normalizeValue(val.trim()))
       );
 
       const positions: number[] = [];
@@ -103,6 +104,28 @@ export class SqlParser {
     }
 
     return inserts;
+  }
+
+  private extractValuesWithNestedParentheses(str: string): string[] | null {
+    const result: string[] = [];
+    let depth = 0;
+    let start = -1;
+
+    for (let i = 0; i < str.length; i++) {
+      if (str[i] === '(') {
+        if (depth === 0) {
+          start = i;
+        }
+        depth++;
+      } else if (str[i] === ')') {
+        depth--;
+        if (depth === 0 && start !== -1) {
+          result.push(str.substring(start, i + 1));
+        }
+      }
+    }
+
+    return result.length > 0 ? result : null;
   }
 
   private stripQuotes(str: any): string {
@@ -297,6 +320,10 @@ export class SqlParser {
 
   private isValidUuid(uuid: string | null): boolean {
     if (!uuid) return false;
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+    const isValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+    if (!isValid) {
+      console.warn(`Invalid UUID format: ${uuid}`);
+    }
+    return isValid;
   }
 }
