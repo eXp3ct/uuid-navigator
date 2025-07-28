@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { debounce } from 'lodash';
 import { activateHighlighter } from './uuidHighlighter';
 import { activateNavigator } from './uuidNavigator';
 import { highlightAllUuids } from './uuidHighlighter';
@@ -11,10 +12,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	activateHighlighter(context);
 	activateNavigator(context);
+
 	const sqlParser = new SqlParser();
-	const {classes, properties } = await sqlParser.parseAllSqlFiles();
+	const { classes, properties } = await sqlParser.parseAllSqlFiles();
+
 	new UuidBlameProvider(context, classes, properties);
 	const treeProvider = new UuidTreeProvider(classes);
+
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
 		treeDataProvider: treeProvider
 	});
@@ -24,8 +28,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.window.onDidChangeActiveTextEditor(highlightAllUuids),
 		vscode.workspace.onDidChangeTextDocument(() => highlightAllUuids()),
 		vscode.commands.registerCommand('uuid-navigator.goToDefinition', async (uuid: string) => {
-			//const { classes, properties } = await sqlParser.parseAllSqlFiles();
-
 			// Ищем сначала в классах, потом в свойствах
 			const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid);
 
@@ -78,7 +80,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('uuid-navigator.showExplorer', async () => {
 			try {
 				// Сначала обновляем данные
-				//await vscode.commands.executeCommand('uuid-navigator.refreshExplorer');
+				await vscode.commands.executeCommand('uuid-navigator.refreshExplorer');
 
 				// Показываем представление (используем только ID представления)
 				await vscode.commands.executeCommand('uuidExplorer.focus');
@@ -92,7 +94,29 @@ export async function activate(context: vscode.ExtensionContext) {
 			await vscode.commands.executeCommand('uuidExplorer.focus');
 		})
 	);
+	const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
 
+	const refreshTree = debounce(async () => {
+		const { classes } = await sqlParser.parseAllSqlFiles();
+		treeProvider.refresh(classes);
+	}, 500); // Обновляем не чаще чем раз в 500мс
+
+	watcher.onDidChange(uri => {
+		sqlParser.invalidateCacheForFile(uri.fsPath);
+		refreshTree();
+	});
+
+	watcher.onDidCreate(() => {
+		sqlParser.invalidateCache();
+		refreshTree();
+	});
+
+	watcher.onDidDelete(() => {
+		sqlParser.invalidateCache();
+		refreshTree();
+	});
+
+	context.subscriptions.push(watcher);
 
 	setTimeout(() => vscode.commands.executeCommand('uuid-navigator.refreshExplorer'), 2000);
 	highlightAllUuids();

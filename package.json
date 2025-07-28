@@ -189,7 +189,9 @@
     "vsce": "^2.15.0"
   },
   "dependencies": {
+    "@types/lodash": "^4.17.20",
     "@types/sinon": "^17.0.4",
+    "lodash": "^4.17.21",
     "pgsql-parser": "^17.7.10"
   }
 }

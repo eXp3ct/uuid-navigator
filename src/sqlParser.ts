@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
+import { sortBy } from 'lodash';
 
 export interface ClassInfo {
   id: string;
@@ -28,7 +30,92 @@ export interface ClassPropertyLink {
 }
 
 export class SqlParser {
-  private parsedData: { classes: ClassInfo[]; properties: PropertyInfo[] } | null = null;
+  private cache: {
+    data: { classes: ClassInfo[]; properties: PropertyInfo[] };
+    fileHashes: Map<string, string>;
+    timestamp: number;
+  } | null = null;
+
+  private fileCache = new Map<string, {
+    content: string;
+    hash: string;
+    parsed: {
+      classes: ClassInfo[];
+      properties: PropertyInfo[];
+      links: ClassPropertyLink[];
+    };
+  }>();
+
+  public async parseAllSqlFiles(forceRefresh = false): Promise<{
+    classes: ClassInfo[];
+    properties: PropertyInfo[];
+  }> {
+    // Получаем текущие хэши файлов
+    const currentFileHashes = await this.getFileHashes();
+
+    // Проверяем валидность кэша
+    if (!forceRefresh && this.cache && this.isCacheValid(currentFileHashes)) {
+      return this.cache.data;
+    }
+
+    // Парсим файлы
+    const { classes, properties } = await this.parseFiles(currentFileHashes);
+
+    // Обновляем кэш
+    this.cache = {
+      data: { classes, properties },
+      fileHashes: currentFileHashes,
+      timestamp: Date.now()
+    };
+
+    return { classes, properties };
+  }
+
+  public invalidateCache(): void {
+    this.cache = null;
+    this.fileCache.clear();
+  }
+
+  public invalidateCacheForFile(filePath: string): void {
+    this.fileCache.delete(filePath);
+    if (this.cache) {
+      this.cache.fileHashes.delete(filePath);
+    }
+  }
+
+  private async getFileHashes(): Promise<Map<string, string>> {
+    const files = await vscode.workspace.findFiles('**/*.sql');
+    const hashes = new Map<string, string>();
+
+    await Promise.all(files.map(async file => {
+      try {
+        const content = await vscode.workspace.fs.readFile(file);
+        const hash = crypto.createHash('sha1').update(content).digest('hex');
+        hashes.set(file.fsPath, hash);
+      } catch (error) {
+        console.error(`Error hashing file ${file.fsPath}:`, error);
+      }
+    }));
+
+    return hashes;
+  }
+
+  private isCacheValid(currentHashes: Map<string, string>): boolean {
+    if (!this.cache) return false;
+
+    // Быстрая проверка количества файлов
+    if (this.cache.fileHashes.size !== currentHashes.size) return false;
+
+    // Подробная проверка хэшей
+    for (const [path, hash] of currentHashes) {
+      if (this.cache.fileHashes.get(path) !== hash) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
 
   private normalizeSql(content: string): string {
     // Удаляем комментарии
@@ -131,86 +218,115 @@ export class SqlParser {
   private stripQuotes(str: any): string {
     return str.replace("'", '')
   }
-  public async parseAllSqlFiles(forceRefresh: boolean = false): Promise<{
+  private async parseFiles(fileHashes: Map<string, string>): Promise<{
     classes: ClassInfo[];
     properties: PropertyInfo[];
   }> {
-    if (!forceRefresh && this.parsedData) {
-      return this.parsedData;
-    }
-    const classes: ClassInfo[] = [];
-    const properties: PropertyInfo[] = [];
-    const links: ClassPropertyLink[] = [];
+    let allClasses: ClassInfo[] = [];
+    let allProperties: PropertyInfo[] = [];
+    const allLinks: ClassPropertyLink[] = [];
     const classMap = new Map<string, ClassInfo>();
     const propertyMap = new Map<string, PropertyInfo>();
 
-    const files = await vscode.workspace.findFiles('**/*.sql');
-
-    for (const file of files) {
+    // Обрабатываем файлы последовательно для сохранения порядка
+    for (const [filePath, fileHash] of fileHashes) {
       try {
-        const document = await vscode.workspace.openTextDocument(file);
-        const content = this.normalizeSql(document.getText());
-        const inserts = this.extractInserts(content, file.fsPath);
+        const { classes, properties, links } = await this.parseFile(filePath, fileHash);
 
-        for (const insert of inserts) {
-          try {
-            if (insert.tableName === 'classes') {
-              for (let i = 0; i < insert.values.length; i++) {
-                const values = insert.values[i];
-                const position = insert.positions[i];
-                const classInfo = this.parseClass(
-                  insert.columns,
-                  values,
-                  file.fsPath,
-                  document.positionAt(position).line + 1,
-                  position
-                );
-                if (classInfo) {
-                  classes.push(classInfo);
-                  classMap.set(classInfo.id, classInfo);
-                }
-              }
-            } else if (insert.tableName === 'property_definitions') {
-              for (let i = 0; i < insert.values.length; i++) {
-                const values = insert.values[i];
-                const position = insert.positions[i];
-                const property = this.parseProperty(
-                  insert.columns,
-                  values,
-                  file.fsPath,
-                  document.positionAt(position).line + 1,
-                  position
-                );
-                //console.log('Property: ', property)
-                if (property) {
-                  properties.push(property);
-                  propertyMap.set(property.id, property);
-                }
-              }
-            } else if (insert.tableName === 'classes_property_definitions') {
-              for (const values of insert.values) {
-                const link = this.parseLink(insert.columns, values);
-                if (link) {
-                  links.push(link);
-                  console.log('Found valid link:', link);
-                } else {
-                  console.log('Skipping row due to missing UUIDs:', values);
-                }
-              }
-            }
-          } catch (error) {
-            console.error(`Error processing insert in ${file.fsPath}:`, error);
+        classes.forEach(cls => {
+          if (!classMap.has(cls.id)) {
+            classMap.set(cls.id, cls);
+            allClasses.push(cls);
           }
-        }
+        });
+
+        properties.forEach(prop => {
+          if (!propertyMap.has(prop.id)) {
+            propertyMap.set(prop.id, prop);
+            allProperties.push(prop);
+          }
+        });
+
+        allLinks.push(...links);
       } catch (error) {
-        console.error(`Error processing file ${file.fsPath}:`, error);
+        console.error(`Error processing file ${filePath}:`, error);
       }
     }
 
-    this.linkClassesAndProperties(classes, properties, links);
+    // Связываем классы и свойства после загрузки всех файлов
+    this.linkClassesAndProperties(allClasses, allProperties, allLinks);
 
-    this.parsedData = { classes, properties };
-    return { classes, properties };
+    allClasses = sortBy(allClasses, c => c.name);
+    allProperties = sortBy(allProperties, p => p.name);
+    
+    return { classes: allClasses, properties: allProperties };
+  }
+
+  private async parseFile(filePath: string, fileHash: string): Promise<{
+    classes: ClassInfo[];
+    properties: PropertyInfo[];
+    links: ClassPropertyLink[];
+  }> {
+    // Проверяем кэш файла
+    if (this.fileCache.has(filePath)) {
+      const cached = this.fileCache.get(filePath)!;
+      if (cached.hash === fileHash) {
+        return cached.parsed;
+      }
+    }
+
+    // Читаем и парсим файл
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    const content = this.normalizeSql(document.getText());
+    const inserts = this.extractInserts(content, filePath);
+
+    const classes: ClassInfo[] = [];
+    const properties: PropertyInfo[] = [];
+    const links: ClassPropertyLink[] = [];
+
+    for (const insert of inserts) {
+      try {
+        if (insert.tableName === 'classes') {
+          for (let i = 0; i < insert.values.length; i++) {
+            const classInfo = this.parseClass(
+              insert.columns,
+              insert.values[i],
+              filePath,
+              document.positionAt(insert.positions[i]).line + 1,
+              insert.positions[i]
+            );
+            if (classInfo) classes.push(classInfo);
+          }
+        } else if (insert.tableName === 'property_definitions') {
+          for (let i = 0; i < insert.values.length; i++) {
+            const property = this.parseProperty(
+              insert.columns,
+              insert.values[i],
+              filePath,
+              document.positionAt(insert.positions[i]).line + 1,
+              insert.positions[i]
+            );
+            if (property) properties.push(property);
+          }
+        } else if (insert.tableName === 'classes_property_definitions') {
+          for (const values of insert.values) {
+            const link = this.parseLink(insert.columns, values);
+            if (link) links.push(link);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing insert in ${filePath}:`, error);
+      }
+    }
+
+    // Кэшируем результаты парсинга файла
+    this.fileCache.set(filePath, {
+      content,
+      hash: fileHash,
+      parsed: { classes, properties, links }
+    });
+
+    return { classes, properties, links };
   }
 
   private parseClass(columns: string[], values: string[], filePath: string, lineNumber: number, position: number): ClassInfo | null {
