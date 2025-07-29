@@ -7,6 +7,9 @@ export interface ExtensionConfig {
   backgroundColor: string;
   showNotifications: boolean;
   showBlameOnHover: boolean;
+  enableValidation: boolean;
+  validateJson: boolean;
+  cursorPointer: boolean;
   blameTemplate?: string[];
 }
 

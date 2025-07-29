@@ -23,7 +23,7 @@ function updateDecorationStyle() {
 
   decorationType = vscode.window.createTextEditorDecorationType({
     textDecoration: config.underline ? 'underline' : 'none',
-    cursor: 'pointer',
+    cursor: config.cursorPointer ? 'pointer' : 'default',
     color: config.highlightColor,
     backgroundColor: config.backgroundColor
   });

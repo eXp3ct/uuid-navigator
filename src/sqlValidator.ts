@@ -1,20 +1,30 @@
 import * as vscode from 'vscode';
 import * as jsonc from 'jsonc-parser';
+import { getConfig } from './settings';
 
 export class SqlValidator {
   private diagnosticCollection: vscode.DiagnosticCollection;
   private statusBarItem: vscode.StatusBarItem;
   private outputChannel: vscode.OutputChannel;
+  private config: ReturnType<typeof getConfig>;
 
   constructor() {
     this.diagnosticCollection = vscode.languages.createDiagnosticCollection('sql-validator');
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.statusBarItem.text = '$(database) SQL Validator';
     this.outputChannel = vscode.window.createOutputChannel('SQL Validator');
+    this.config = getConfig();
+
+    // Подписываемся на изменения конфигурации
+    vscode.workspace.onDidChangeConfiguration(() => {
+      this.config = getConfig();
+    });
   }
 
   public async validateDocument(document: vscode.TextDocument): Promise<void> {
-    if (document.languageId !== 'sql') {
+    // Проверяем глобальный флаг валидации
+    if (!this.config.enableValidation || document.languageId !== 'sql') {
+      this.clearDiagnostics(document.uri);
       return;
     }
 
@@ -25,9 +35,11 @@ export class SqlValidator {
     try {
       const startTime = Date.now();
       const diagnostics: vscode.Diagnostic[] = [];
-      const text = document.getText();
 
-      this.validateJsonStructures(text, document, diagnostics);
+      // Проверяем JSON только если включено в настройках
+      if (this.config.validateJson) {
+        this.validateJsonStructures(document, diagnostics);
+      }
 
       this.diagnosticCollection.set(document.uri, diagnostics);
 
@@ -35,26 +47,19 @@ export class SqlValidator {
       const issueCount = diagnostics.length;
 
       this.outputChannel.appendLine(`Validation completed in ${elapsedTime}ms`);
-      this.outputChannel.appendLine(`Found ${issueCount} JSON issues`);
+      this.outputChannel.appendLine(`Found ${issueCount} issues`);
 
-      if (issueCount === 0) {
-        this.statusBarItem.text = '$(pass-filled) SQL Valid: No JSON issues';
-        this.statusBarItem.tooltip = 'No JSON validation issues found';
-        this.statusBarItem.backgroundColor = undefined;
-      } else {
-        this.statusBarItem.text = `$(error) SQL Valid: ${issueCount} JSON issues`;
-        this.statusBarItem.tooltip = `${issueCount} JSON validation issues found`;
-        this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-      }
+      this.updateStatusBar(issueCount);
     } catch (error) {
       this.outputChannel.appendLine(`Validation error: ${error instanceof Error ? error.message : String(error)}`);
       this.statusBarItem.text = '$(error) SQL Validator: Error';
-      this.statusBarItem.tooltip = 'Error during JSON validation';
+      this.statusBarItem.tooltip = 'Error during validation';
       this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
     }
   }
 
-  private validateJsonStructures(text: string, document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+  private validateJsonStructures(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+    const text = document.getText();
     const jsonPattern = /'((?:[^']|'')*?)'\s*::\s*jsonb/gi;
     let match: RegExpExecArray | null;
 
@@ -116,6 +121,18 @@ export class SqlValidator {
     const errorLine = lines[line - 1] || '';
 
     return `${jsonc.printParseErrorCode(error.error)} at position ${error.offset} (line ${line}, column ${column}): ${errorLine}`;
+  }
+
+  private updateStatusBar(issueCount: number): void {
+    if (issueCount === 0) {
+      this.statusBarItem.text = '$(pass-filled) SQL Valid: No issues';
+      this.statusBarItem.tooltip = 'No validation issues found';
+      this.statusBarItem.backgroundColor = undefined;
+    } else {
+      this.statusBarItem.text = `$(error) SQL Valid: ${issueCount} issues`;
+      this.statusBarItem.tooltip = `${issueCount} validation issues found`;
+      this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+    }
   }
 
   public clearDiagnostics(uri: vscode.Uri): void {
