@@ -60,6 +60,16 @@
         "command": "uuid-navigator.goToDefinition",
         "title": "Go to UUID Definition",
         "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.validateCurrentFile",
+        "title": "Validate Current SQL File",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.showValidatorLogs",
+        "title": "Show Validator Logs",
+        "category": "UUID Navigator"
       }
     ],
     "languages": [
@@ -130,6 +140,26 @@
           ],
           "description": "Template for blame message. Select which elements to show and their order",
           "scope": "resource"
+        },
+        "uuidNavigator.enableValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic SQL validation"
+        },
+        "uuidNavigator.validateJson": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate JSON structures in SQL files"
+        },
+        "uuidNavigator.validateInserts": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate INSERT statements"
+        },
+        "uuidNavigator.validateParameters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate SQL parameters (:my_utc_now, etc.)"
         }
       }
     },
@@ -193,6 +223,7 @@
   "dependencies": {
     "@types/lodash": "^4.17.20",
     "@types/sinon": "^17.0.4",
+    "jsonc-parser": "^3.3.1",
     "lodash": "^4.17.21",
     "pgsql-parser": "^17.7.10"
   }

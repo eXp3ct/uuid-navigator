@@ -5,6 +5,7 @@ import { registerNavigationCommands } from './navigationService';
 import { BlameProvider } from './blameProvider';
 import { SqlProcessor } from './sqlProcessor';
 import { ExplorerProvider } from './explorerProvider';
+import { SqlValidator } from './sqlValidator';
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('UUID Navigator activated');
@@ -13,6 +14,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	registerNavigationCommands(context);
 
 	const sqlProcessor = new SqlProcessor();
+	const sqlValidator = new SqlValidator();
 	const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
 
 	new BlameProvider(context, classes, properties, objects);
@@ -62,6 +64,17 @@ export async function activate(context: vscode.ExtensionContext) {
 			explorerProvider.refresh(classes, objects);
 		}),
 
+		vscode.commands.registerCommand('uuid-navigator.validateCurrentFile', () => {
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				sqlValidator.validateDocument(editor.document);
+			}
+		}),
+		vscode.commands.registerCommand('uuid-navigator.showValidatorLogs', () => {
+			sqlValidator.showOutput();
+		}),
+
+
 		vscode.commands.registerCommand('uuid-navigator.insertUuid', (uuid: string) => {
 			const editor = vscode.window.activeTextEditor;
 			editor?.edit(editBuilder => {
@@ -83,6 +96,20 @@ export async function activate(context: vscode.ExtensionContext) {
 			vscode.commands.executeCommand('uuidExplorer.focus');
 		})
 	);
+
+	const validateDocument = (document: vscode.TextDocument) => {
+		const config = vscode.workspace.getConfiguration('uuidNavigator');
+		if (config.get<boolean>('enableValidation', true)) {
+			sqlValidator.validateDocument(document);
+		}
+	};
+
+	context.subscriptions.push(
+		vscode.workspace.onDidOpenTextDocument(validateDocument),
+		vscode.workspace.onDidSaveTextDocument(validateDocument),
+		vscode.workspace.onDidCloseTextDocument(doc => {
+			sqlValidator.clearDiagnostics(doc.uri);
+		}));
 
 	const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
 	const refreshTree = debounce(async () => {
