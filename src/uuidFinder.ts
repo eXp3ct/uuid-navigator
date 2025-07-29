@@ -1,14 +1,16 @@
 import { UuidInfo } from './models';
-import { ClassInfo, PropertyInfo } from './sqlProcessor';
+import { ClassInfo, ObjectInfo, PropertyInfo } from './sqlProcessor';
 
 export class UuidFinder {
   private cache: UuidInfo[] = [];
   private classes: ClassInfo[];
   private properties: PropertyInfo[];
+  private objects: ObjectInfo[];
 
-  constructor(classes: ClassInfo[], properties: PropertyInfo[]) {
+  constructor(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
     this.classes = classes;
     this.properties = properties;
+    this.objects = objects;
   }
 
   async initialize() {
@@ -37,12 +39,22 @@ export class UuidFinder {
       });
     });
 
+    this.objects.forEach(obj => {
+      this.cache.push({
+        uuid: obj.id,
+        propertyName: obj.name,
+        description: obj.description,
+        type: 'object',
+        classUuid: obj.parentId || ''
+      });
+    });
+
     return this.cache;
   }
 
   getInfo(uuid: string): UuidInfo | undefined {
     const cached = this.cache.find(info => info.uuid === uuid);
-    if (!cached) {return undefined;}
+    if (!cached) { return undefined; }
 
     const result: UuidInfo = {
       uuid,
@@ -73,6 +85,24 @@ export class UuidFinder {
       if (classInfo) {
         result.className = classInfo.name;
         result.description = classInfo.description;
+      }
+    }
+
+    if (cached.type === 'object') {
+      const object = this.objects.find(o => o.id === uuid);
+      if (object) {
+        result.propertyName = object.name;
+        result.description = object.description;
+
+        const classInfo = this.classes.find(c =>
+          c.objects.some(o => o.id === uuid) ||
+          c.id === object.parentId
+        );
+
+        if (classInfo) {
+          result.className = classInfo.name;
+          result.classUuid = classInfo.id;
+        }
       }
     }
 
