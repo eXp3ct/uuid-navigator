@@ -1,52 +1,50 @@
 import * as vscode from 'vscode';
 import { debounce } from 'lodash';
-import { activateHighlighter } from './uuidHighlighter';
-import { activateNavigator } from './uuidNavigator';
-import { highlightAllUuids } from './uuidHighlighter';
-import { UuidBlameProvider } from './uuidBlame';
-import { SqlParser } from './sqlParser';
-import { UuidTreeProvider } from './uuidTreeProvider';
+import { initializeHighlighter, highlightAllUuids } from './highlightingService';
+import { registerNavigationCommands } from './navigationService';
+import { BlameProvider } from './blameProvider';
+import { SqlProcessor } from './sqlProcessor';
+import { ExplorerProvider } from './explorerProvider';
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('UUID Navigator activated');
 
-	activateHighlighter(context);
-	activateNavigator(context);
+	initializeHighlighter(context);
+	registerNavigationCommands(context);
 
-	const sqlParser = new SqlParser();
-	const { classes, properties } = await sqlParser.parseAllSqlFiles();
+	const sqlProcessor = new SqlProcessor();
+	const { classes, properties } = await sqlProcessor.parseAllSqlFiles();
 
-	new UuidBlameProvider(context, classes, properties);
-	const treeProvider = new UuidTreeProvider(classes);
+	new BlameProvider(context, classes, properties);
+	const explorerProvider = new ExplorerProvider(classes);
 
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
-		treeDataProvider: treeProvider
+		treeDataProvider: explorerProvider
 	});
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('uuid-navigator.findUuids', () => highlightAllUuids()),
+		vscode.commands.registerCommand('uuid-navigator.findUuids', highlightAllUuids),
 		vscode.window.onDidChangeActiveTextEditor(highlightAllUuids),
 		vscode.workspace.onDidChangeTextDocument(() => highlightAllUuids()),
+		treeView,
+
 		vscode.commands.registerCommand('uuid-navigator.goToDefinition', async (uuid: string) => {
-			// Ищем сначала в классах, потом в свойствах
 			const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid);
 
-			if (target && target.filePath) {
+			if (target?.filePath) {
 				try {
 					const uri = vscode.Uri.file(target.filePath);
 					const document = await vscode.workspace.openTextDocument(uri);
-
-					// Находим точную позицию UUID в файле
 					const text = document.getText();
-					const uuidRegex = new RegExp(`'${uuid}'`);
-					const match = uuidRegex.exec(text);
+					const match = new RegExp(`'${uuid}'`).exec(text);
 
 					if (match) {
 						const position = document.positionAt(match.index);
 						await vscode.window.showTextDocument(uri, {
 							selection: new vscode.Range(position, position)
 						});
-						const name = (target as any).name || 'Unknown';
+
+						const name = target.name || 'Unknown';
 						vscode.window.showInformationMessage(`Navigated to: ${name}`);
 					} else {
 						vscode.window.showErrorMessage(`UUID not found in file`);
@@ -58,31 +56,22 @@ export async function activate(context: vscode.ExtensionContext) {
 				vscode.window.showErrorMessage(`Definition for UUID ${uuid} not found`);
 			}
 		}),
-		treeView,
 
-		// Refresh command
 		vscode.commands.registerCommand('uuid-navigator.refreshExplorer', async () => {
-			const { classes } = await sqlParser.parseAllSqlFiles(true);
-			treeProvider.refresh(classes);
+			const { classes } = await sqlProcessor.parseAllSqlFiles(true);
+			explorerProvider.refresh(classes);
 		}),
 
-		// Insert UUID command
 		vscode.commands.registerCommand('uuid-navigator.insertUuid', (uuid: string) => {
 			const editor = vscode.window.activeTextEditor;
-			if (editor) {
-				editor.edit(editBuilder => {
-					editBuilder.insert(editor.selection.active, uuid);
-				});
-			}
+			editor?.edit(editBuilder => {
+				editBuilder.insert(editor.selection.active, uuid);
+			});
 		}),
 
-		// Show explorer command
 		vscode.commands.registerCommand('uuid-navigator.showExplorer', async () => {
 			try {
-				// Сначала обновляем данные
 				await vscode.commands.executeCommand('uuid-navigator.refreshExplorer');
-
-				// Показываем представление (используем только ID представления)
 				await vscode.commands.executeCommand('uuidExplorer.focus');
 			} catch (error) {
 				vscode.window.showErrorMessage(`Failed to show UUID Explorer: ${error}`);
@@ -90,36 +79,38 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 		}),
 
-		vscode.commands.registerCommand('uuid-navigator.focusTreeView', async () => {
-			await vscode.commands.executeCommand('uuidExplorer.focus');
+		vscode.commands.registerCommand('uuid-navigator.focusTreeView', () => {
+			vscode.commands.executeCommand('uuidExplorer.focus');
 		})
 	);
-	const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
 
+	const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
 	const refreshTree = debounce(async () => {
-		const { classes } = await sqlParser.parseAllSqlFiles();
-		treeProvider.refresh(classes);
-	}, 500); // Обновляем не чаще чем раз в 500мс
+		const { classes } = await sqlProcessor.parseAllSqlFiles();
+		explorerProvider.refresh(classes);
+	}, 500);
 
 	watcher.onDidChange(uri => {
-		sqlParser.invalidateCacheForFile(uri.fsPath);
+		sqlProcessor.invalidateCacheForFile(uri.fsPath);
 		refreshTree();
 	});
 
 	watcher.onDidCreate(() => {
-		sqlParser.invalidateCache();
+		sqlProcessor.invalidateCache();
 		refreshTree();
 	});
 
 	watcher.onDidDelete(() => {
-		sqlParser.invalidateCache();
+		sqlProcessor.invalidateCache();
 		refreshTree();
 	});
 
 	context.subscriptions.push(watcher);
 
-	setTimeout(() => vscode.commands.executeCommand('uuid-navigator.refreshExplorer'), 2000);
-	highlightAllUuids();
+	setTimeout(() => {
+		vscode.commands.executeCommand('uuid-navigator.refreshExplorer');
+		highlightAllUuids();
+	}, 2000);
 }
 
 export function deactivate() { }

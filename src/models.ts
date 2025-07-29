@@ -2,14 +2,12 @@ import * as vscode from 'vscode';
 
 export interface ExtensionConfig {
   applyStyles: boolean;
-  highlightColor: string;  // Цвет текста UUID
-  underline: boolean;      // Подчёркивание
-  backgroundColor: string; // Фон UUID (HEX с альфа-каналом)
+  highlightColor: string;
+  underline: boolean;
+  backgroundColor: string;
   showNotifications: boolean;
   showBlameOnHover: boolean;
   blameTemplate?: string[];
-  defaultClassTemplate?: string[];
-  defaultPropertyTemplate?: string[];
 }
 
 export interface ExtensionContext extends vscode.ExtensionContext {
@@ -22,13 +20,13 @@ export interface ExtensionContext extends vscode.ExtensionContext {
   workspaceState: vscode.Memento;
 }
 
-export interface UuidBlameInfo {
+export interface UuidInfo {
   uuid: string;
   type: 'class' | 'property';
-  className?: string;       // Всегда показываем, если есть
-  classUuid?: string;       // Для свойств
-  propertyName?: string;    // Только для свойств
-  description?: string;     // Описание (для классов и свойств)
+  className?: string;
+  classUuid?: string;
+  propertyName?: string;
+  description?: string;
   filePath?: string;
   lineNumber?: number;
   position?: number;

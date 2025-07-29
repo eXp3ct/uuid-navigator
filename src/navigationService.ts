@@ -1,45 +1,41 @@
 import * as vscode from 'vscode';
-import { getConfig } from './config';
-import {ExtensionConfig} from './types';
+import { getConfig } from './settings';
+import { ExtensionConfig } from './models';
+import { getUuidRange } from './utils';
 
-let referenceDecorations: vscode.TextEditorDecorationType[] = [];
+let highlightDecorations: vscode.TextEditorDecorationType[] = [];
 
-export function activateNavigator(context: vscode.ExtensionContext) {
+export function registerNavigationCommands(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(
       ['sql', 'mssql'],
       { provideDefinition: findUuidReferences }
     ),
-    vscode.commands.registerCommand('uuid-navigator.clearHighlights', clearReferenceHighlights)
+    vscode.commands.registerCommand('uuid-navigator.clearHighlights', clearHighlights)
   );
 }
 
-export function clearReferenceHighlights() {
-  referenceDecorations.forEach(decoration => decoration.dispose());
-  referenceDecorations = [];
+export function clearHighlights() {
+  highlightDecorations.forEach(d => d.dispose());
+  highlightDecorations = [];
 }
 
 export async function findUuidReferences(document: vscode.TextDocument, position: vscode.Position) {
-  const range = getUuidRangeAtPosition(document, position);
-  if (!range) {return null;}
+  const range = getUuidRange(document, position);
+  if (!range) return null;
 
   const uuid = document.getText(range).replace(/["']/g, '');
   return await findUuidLocations(uuid);
 }
 
-function getUuidRangeAtPosition(document: vscode.TextDocument, position: vscode.Position) {
-  const uuidRegex = /(?<q>["'])?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:(?<=['"])|(?<w>["'])?)/g;
-  return document.getWordRangeAtPosition(position, uuidRegex);
-}
-
 async function findUuidLocations(uuid: string) {
-  clearReferenceHighlights();
+  clearHighlights();
   const config = getConfig();
   const locations: vscode.Location[] = [];
   const files = await vscode.workspace.findFiles('**/*.sql');
 
-  const decorationType = createReferenceDecorationType(getConfig());
-  referenceDecorations.push(decorationType);
+  const decorationType = createHighlightDecoration(config);
+  highlightDecorations.push(decorationType);
 
   for (const file of files) {
     const document = await vscode.workspace.openTextDocument(file);
@@ -47,7 +43,7 @@ async function findUuidLocations(uuid: string) {
 
     matches.forEach(match => {
       locations.push(new vscode.Location(file, match.range));
-      highlightMatchInEditor(file, match);
+      highlightMatch(file, match);
     });
   }
 
@@ -61,10 +57,10 @@ async function findUuidLocations(uuid: string) {
   return locations;
 }
 
-function createReferenceDecorationType(config: ExtensionConfig) {
+function createHighlightDecoration(config: ExtensionConfig) {
   return vscode.window.createTextEditorDecorationType({
     backgroundColor: config.backgroundColor,
-    border: `1px solid ${config.backgroundColor.substring(0, 7)}b3`, // Добавляем прозрачность
+    border: `1px solid ${config.backgroundColor.substring(0, 7)}b3`,
     borderRadius: '2px'
   });
 }
@@ -87,19 +83,20 @@ function findUuidMatches(document: vscode.TextDocument, uuid: string) {
   return matches;
 }
 
-function highlightMatchInEditor(file: vscode.Uri, match: { range: vscode.Range }) {
+function highlightMatch(file: vscode.Uri, match: { range: vscode.Range }) {
   vscode.window.visibleTextEditors.forEach(editor => {
     if (editor.document.uri.toString() === file.toString()) {
-      // Используем встроенный декор для референсов
       const decor = vscode.window.createTextEditorDecorationType({
         backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground'),
         border: `1px solid ${new vscode.ThemeColor('editor.findMatchHighlightBorder')}`
       });
+
       editor.setDecorations(decor, [{
         range: match.range,
         hoverMessage: `Reference to UUID`
       }]);
-      setTimeout(() => decor.dispose(), 5000); // Автоочистка
+
+      setTimeout(() => decor.dispose(), 5000);
     }
   });
 }

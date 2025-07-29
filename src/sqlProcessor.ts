@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { sortBy } from 'lodash';
-import { DataType } from './types';
+
+const CLASS_TABLE = 'classes';
+const PROPERTY_TABLE = 'property_definitions';
+const LINK_TABLE = 'classes_property_definitions';
 
 export interface ClassInfo {
   id: string;
@@ -24,13 +27,18 @@ export interface PropertyInfo {
   position?: number;
 }
 
-export interface ClassPropertyLink {
-  id?: string;
+interface ClassPropertyLink {
   classId: string;
   propertyId: string;
 }
 
-export class SqlParser {
+interface ParsedFile {
+  classes: ClassInfo[];
+  properties: PropertyInfo[];
+  links: ClassPropertyLink[];
+}
+
+export class SqlProcessor {
   private cache: {
     data: { classes: ClassInfo[]; properties: PropertyInfo[] };
     fileHashes: Map<string, string>;
@@ -38,31 +46,22 @@ export class SqlParser {
   } | null = null;
 
   private fileCache = new Map<string, {
-    content: string;
     hash: string;
-    parsed: {
-      classes: ClassInfo[];
-      properties: PropertyInfo[];
-      links: ClassPropertyLink[];
-    };
+    parsed: ParsedFile;
   }>();
 
   public async parseAllSqlFiles(forceRefresh = false): Promise<{
     classes: ClassInfo[];
     properties: PropertyInfo[];
   }> {
-    // Получаем текущие хэши файлов
     const currentFileHashes = await this.getFileHashes();
 
-    // Проверяем валидность кэша
     if (!forceRefresh && this.cache && this.isCacheValid(currentFileHashes)) {
       return this.cache.data;
     }
 
-    // Парсим файлы
     const { classes, properties } = await this.parseFiles(currentFileHashes);
 
-    // Обновляем кэш
     this.cache = {
       data: { classes, properties },
       fileHashes: currentFileHashes,
@@ -103,11 +102,8 @@ export class SqlParser {
 
   private isCacheValid(currentHashes: Map<string, string>): boolean {
     if (!this.cache) return false;
-
-    // Быстрая проверка количества файлов
     if (this.cache.fileHashes.size !== currentHashes.size) return false;
 
-    // Подробная проверка хэшей
     for (const [path, hash] of currentHashes) {
       if (this.cache.fileHashes.get(path) !== hash) {
         return false;
@@ -117,20 +113,14 @@ export class SqlParser {
     return true;
   }
 
-
   private normalizeSql(content: string): string {
-    // Удаляем комментарии
-    let normalized = content
+    return content
       .replace(/--.*$/gm, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '');
-
-    // Заменяем параметры и функции на NULL
-    normalized = normalized.replace(/:my_utc_now/g, 'NULL::timestamp');
-    normalized = normalized.replace(/:my_admin_id/g, 'NULL::uuid');
-    normalized = normalized.replace(/gen_random_uuid\(\)/g, 'NULL::uuid');
-    normalized = normalized.replace(/:(\w+)/g, 'NULL');
-
-    return normalized;
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/:my_utc_now/g, 'NULL::timestamp')
+      .replace(/:my_admin_id/g, 'NULL::uuid')
+      .replace(/gen_random_uuid\(\)/g, 'NULL::uuid')
+      .replace(/:(\w+)/g, 'NULL');
   }
 
   private normalizeValue(value: string): string {
@@ -142,94 +132,76 @@ export class SqlParser {
       .trim();
   }
 
-  private extractInserts(content: string, filePath: string): {
+  private extractInserts(content: string): {
     tableName: string;
     columns: string[];
     values: string[][];
     positions: number[];
   }[] {
-    const inserts: {
-      tableName: string;
-      columns: string[];
-      values: string[][];
-      positions: number[];
-    }[] = [];
-
-    // Улучшенное регулярное выражение для обработки многострочных INSERT
+    const inserts = [];
     const insertRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*((?:\((?:[^()]|\([^)]*\))*\))(?:\s*,\s*\((?:[^()]|\([^)]*\))*\))*)/gi;
 
     let match;
     while ((match = insertRegex.exec(content)) !== null) {
       const tableName = match[1].trim();
       const columns = match[2].split(',').map(c => c.trim().replace(/["']/g, ''));
+      const valueMatches = this.extractValueGroups(match[3]);
 
-      const valuesRaw = match[3];
-
-      // Улучшенная обработка значений с учетом вложенных скобок
-      const valueMatches = this.extractValuesWithNestedParentheses(valuesRaw);
       if (!valueMatches) continue;
 
-      const values: string[][] = valueMatches.map(vGroup =>
-        vGroup
-          .slice(1, -1) // remove surrounding parentheses
-          .split(/(?<!\\),/) // split by commas not preceded by backslash
-          .map(val => this.normalizeValue(val.trim()))
+      const values = valueMatches.map(vGroup =>
+        vGroup.slice(1, -1).split(/(?<!\\),/).map(val => this.normalizeValue(val.trim()))
       );
 
-      const positions: number[] = [];
+      const positions = [];
       const uuidRegex = /'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'/gi;
       let uuidMatch;
-      while ((uuidMatch = uuidRegex.exec(valuesRaw)) !== null) {
+
+      while ((uuidMatch = uuidRegex.exec(match[3])) !== null) {
         positions.push(uuidMatch.index);
       }
 
-      inserts.push({
-        tableName,
-        columns,
-        values,
-        positions
-      });
+      inserts.push({ tableName, columns, values, positions });
     }
 
     return inserts;
   }
 
-  private extractValuesWithNestedParentheses(str: string): string[] | null {
-    const result: string[] = [];
+  private extractValueGroups(str: string): string[] | null {
+    const groups = [];
     let depth = 0;
     let start = -1;
 
     for (let i = 0; i < str.length; i++) {
       if (str[i] === '(') {
-        if (depth === 0) {
-          start = i;
-        }
+        if (depth === 0) start = i;
         depth++;
-      } else if (str[i] === ')') {
+      }
+      else if (str[i] === ')') {
         depth--;
         if (depth === 0 && start !== -1) {
-          result.push(str.substring(start, i + 1));
+          groups.push(str.substring(start, i + 1));
         }
       }
     }
 
-    return result.length > 0 ? result : null;
+    return groups.length > 0 ? groups : null;
   }
 
-  private stripQuotes(str: any): string {
-    return str.replace("'", '')
+  private stripQuotes(str: string): string {
+    return str.replace(/['"]/g, '');
   }
+
   private async parseFiles(fileHashes: Map<string, string>): Promise<{
     classes: ClassInfo[];
     properties: PropertyInfo[];
   }> {
-    let allClasses: ClassInfo[] = [];
-    let allProperties: PropertyInfo[] = [];
-    const allLinks: ClassPropertyLink[] = [];
     const classMap = new Map<string, ClassInfo>();
     const propertyMap = new Map<string, PropertyInfo>();
+    const allLinks: ClassPropertyLink[] = [];
+    let allClasses: ClassInfo[] = [];
+    let allProperties: PropertyInfo[] = [];
 
-    // Обрабатываем файлы последовательно для сохранения порядка
     for (const [filePath, fileHash] of fileHashes) {
       try {
         const { classes, properties, links } = await this.parseFile(filePath, fileHash);
@@ -254,32 +226,22 @@ export class SqlParser {
       }
     }
 
-    // Связываем классы и свойства после загрузки всех файлов
     this.linkClassesAndProperties(allClasses, allProperties, allLinks);
-
-    allClasses = sortBy(allClasses, c => c.name);
-    allProperties = sortBy(allProperties, p => p.name);
-
-    return { classes: allClasses, properties: allProperties };
+    return {
+      classes: sortBy(allClasses, c => c.name),
+      properties: sortBy(allProperties, p => p.name)
+    };
   }
 
-  private async parseFile(filePath: string, fileHash: string): Promise<{
-    classes: ClassInfo[];
-    properties: PropertyInfo[];
-    links: ClassPropertyLink[];
-  }> {
-    // Проверяем кэш файла
-    if (this.fileCache.has(filePath)) {
-      const cached = this.fileCache.get(filePath)!;
-      if (cached.hash === fileHash) {
-        return cached.parsed;
-      }
+  private async parseFile(filePath: string, fileHash: string): Promise<ParsedFile> {
+    const cached = this.fileCache.get(filePath);
+    if (cached && cached.hash === fileHash) {
+      return cached.parsed;
     }
 
-    // Читаем и парсим файл
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
     const content = this.normalizeSql(document.getText());
-    const inserts = this.extractInserts(content, filePath);
+    const inserts = this.extractInserts(content);
 
     const classes: ClassInfo[] = [];
     const properties: PropertyInfo[] = [];
@@ -287,29 +249,19 @@ export class SqlParser {
 
     for (const insert of inserts) {
       try {
-        if (insert.tableName === 'classes') {
+        if (insert.tableName === CLASS_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
-            const classInfo = this.parseClass(
-              insert.columns,
-              insert.values[i],
-              filePath,
-              document.positionAt(insert.positions[i]).line + 1,
-              insert.positions[i]
-            );
+            const classInfo = this.parseClass(insert, i, filePath, document);
             if (classInfo) classes.push(classInfo);
           }
-        } else if (insert.tableName === 'property_definitions') {
+        }
+        else if (insert.tableName === PROPERTY_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
-            const property = this.parseProperty(
-              insert.columns,
-              insert.values[i],
-              filePath,
-              document.positionAt(insert.positions[i]).line + 1,
-              insert.positions[i]
-            );
+            const property = this.parseProperty(insert, i, filePath, document);
             if (property) properties.push(property);
           }
-        } else if (insert.tableName === 'classes_property_definitions') {
+        }
+        else if (insert.tableName === LINK_TABLE) {
           for (const values of insert.values) {
             const link = this.parseLink(insert.columns, values);
             if (link) links.push(link);
@@ -320,46 +272,54 @@ export class SqlParser {
       }
     }
 
-    // Кэшируем результаты парсинга файла
-    this.fileCache.set(filePath, {
-      content,
-      hash: fileHash,
-      parsed: { classes, properties, links }
-    });
+    const parsed = { classes, properties, links };
+    this.fileCache.set(filePath, { hash: fileHash, parsed });
 
-    return { classes, properties, links };
+    return parsed;
   }
 
-  private parseClass(columns: string[], values: string[], filePath: string, lineNumber: number, position: number): ClassInfo | null {
-    const id = this.getValue(columns, values, 'id');
-    const name = this.getValue(columns, values, 'name');
-    const description = this.getValue(columns, values, 'description');
+  private parseClass(
+    insert: any,
+    index: number,
+    filePath: string,
+    document: vscode.TextDocument
+  ): ClassInfo | null {
+    const { columns, values, positions } = insert;
+    const row = values[index];
+
+    const id = this.getValue(columns, row, 'id');
+    const name = this.getValue(columns, row, 'name');
+    const description = this.getValue(columns, row, 'description');
 
     if (!id || !name) return null;
 
     return {
       id,
       name: this.stripQuotes(name),
-      description: this.stripQuotes(description) || '',
+      description: this.stripQuotes(description || '') || '',
       properties: [],
       filePath,
-      lineNumber,
-      position
+      lineNumber: document.positionAt(positions[index]).line + 1,
+      position: positions[index]
     };
   }
 
-  private parseProperty(columns: string[], values: string[], filePath: string, lineNumber: number, position: number): PropertyInfo | null {
-    const id = this.getValue(columns, values, 'id');
-    const name = this.getValue(columns, values, 'name');
-    const description = this.getValue(columns, values, 'description');
-    const dataType = parseInt(this.getValue(columns, values, 'data_type') || '0');
-    if (!(dataType in DataType)) {
-      console.warn(`Invalid dataType: ${dataType} for property ${id}`);
-    }
-    let sourceClassId = this.getValue(columns, values, 'source_class_id');
+  private parseProperty(
+    insert: any,
+    index: number,
+    filePath: string,
+    document: vscode.TextDocument
+  ): PropertyInfo | null {
+    const { columns, values, positions } = insert;
+    const row = values[index];
 
-    // Нормализация sourceClassId
-    if (sourceClassId === 'null' || sourceClassId === null || sourceClassId === 'undefined') {
+    const id = this.getValue(columns, row, 'id');
+    const name = this.getValue(columns, row, 'name');
+    const description = this.getValue(columns, row, 'description');
+    const dataType = parseInt(this.getValue(columns, row, 'data_type') || '0');
+    let sourceClassId = this.getValue(columns, row, 'source_class_id');
+
+    if (sourceClassId === 'null' || !sourceClassId) {
       sourceClassId = null;
     }
 
@@ -375,8 +335,8 @@ export class SqlParser {
       dataType,
       sourceClassId: sourceClassId || undefined,
       filePath,
-      lineNumber,
-      position
+      lineNumber: document.positionAt(positions[index]).line + 1,
+      position: positions[index]
     };
   }
 
@@ -385,14 +345,11 @@ export class SqlParser {
     const classId = this.getValue(columns, normalized, 'class_id');
     const propertyId = this.getValue(columns, normalized, 'property_definition_id');
 
-    if (!this.isValidUuid(classId) || !this.isValidUuid(propertyId)) {
+    if (!this.isValidUuid(classId) || !this.isValidUuid(propertyId) || !classId || !propertyId) {
       return null;
     }
 
-    return {
-      classId: classId || '',
-      propertyId: propertyId || ''
-    };
+    return { classId, propertyId };
   }
 
   private linkClassesAndProperties(
@@ -403,16 +360,6 @@ export class SqlParser {
     const propertyMap = new Map(properties.map(p => [p.id, p]));
     const classMap = new Map(classes.map(c => [c.id, c]));
 
-    // Собираем все ID свойств, которые должны быть связаны
-    const allPropertyIds = new Set<string>();
-    links.forEach(link => allPropertyIds.add(link.propertyId));
-    // Проверяем наличие всех свойств
-    const missingProperties = Array.from(allPropertyIds).filter(id => !propertyMap.has(id));
-    if (missingProperties.length > 0) {
-      console.warn('Missing property definitions for IDs:', missingProperties);
-    }
-
-    // Связываем только те свойства, которые существуют
     links.forEach(link => {
       const cls = classMap.get(link.classId);
       const prop = propertyMap.get(link.propertyId);
@@ -420,15 +367,10 @@ export class SqlParser {
       if (cls && prop) {
         if (!cls.properties.some(p => p.id === prop.id)) {
           cls.properties.push(prop);
-          console.log(`Linked property ${prop.name || prop.id} to class ${cls.name || cls.id}`);
         }
       } else {
-        if (!cls) {
-          console.warn(`Class not found for link: ${link.classId}`);
-        }
-        if (!prop) {
-          console.warn(`Property not found for link: ${link.propertyId}`);
-        }
+        if (!cls) console.warn(`Class not found for link: ${link.classId}`);
+        if (!prop) console.warn(`Property not found for link: ${link.propertyId}`);
       }
     });
   }
@@ -439,11 +381,6 @@ export class SqlParser {
   }
 
   private isValidUuid(uuid: string | null): boolean {
-    if (!uuid) return false;
-    const isValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
-    if (!isValid) {
-      console.warn(`Invalid UUID format: ${uuid}`);
-    }
-    return isValid;
+    return !!uuid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
   }
 }

@@ -1,25 +1,25 @@
 import * as vscode from 'vscode';
-import { getConfig } from './config';
+import { getConfig } from './settings';
+import { isSqlFile } from './utils';
 
 let decorationType: vscode.TextEditorDecorationType;
-let currentEditor: vscode.TextEditor | undefined;
 
-export function activateHighlighter(context: vscode.ExtensionContext) {
-  updateDecorationType();
+export function initializeHighlighter(context: vscode.ExtensionContext) {
+  updateDecorationStyle();
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('uuidNavigator')) {
-        updateDecorationType();
+        updateDecorationStyle();
         highlightAllUuids();
       }
     })
   );
 }
 
-function updateDecorationType() {
-  const config = getConfig();
+function updateDecorationStyle() {
   decorationType?.dispose();
+  const config = getConfig();
 
   decorationType = vscode.window.createTextEditorDecorationType({
     textDecoration: config.underline ? 'underline' : 'none',
@@ -30,33 +30,29 @@ function updateDecorationType() {
 }
 
 export function highlightAllUuids(editor = vscode.window.activeTextEditor) {
-  if (!editor || !isSqlFile(editor.document)) {return;}
-  const { applyStyles } = getConfig();
-  if (!applyStyles) {return;}
+  if (!editor || !isSqlFile(editor.document)) return;
+
+  const config = getConfig();
+  if (!config.applyStyles) return;
+
   const decorations = findUuidDecorations(editor.document);
   editor.setDecorations(decorationType, decorations);
 }
 
 function findUuidDecorations(document: vscode.TextDocument) {
   const text = document.getText();
-  const uuidRegex = /(?<q>["'])?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:(?<=['"])|(?<w>["'])?)/g;
+  const uuidRegex = /["']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}["']?/gi;
   const decorations: vscode.DecorationOptions[] = [];
 
   let match;
   while ((match = uuidRegex.exec(text)) !== null) {
     const startPos = document.positionAt(match.index);
     const endPos = document.positionAt(match.index + match[0].length);
+
     decorations.push({
-      range: new vscode.Range(startPos, endPos),
-      //hoverMessage: `UUID: ${match[0].replace(/["']/g, '')}\n\nCtrl+Click to find references`
+      range: new vscode.Range(startPos, endPos)
     });
   }
 
   return decorations;
-}
-
-function isSqlFile(document: vscode.TextDocument): boolean {
-  return document.languageId === 'sql' ||
-    document.languageId === 'mssql' ||
-    document.fileName.endsWith('.sql');
 }
