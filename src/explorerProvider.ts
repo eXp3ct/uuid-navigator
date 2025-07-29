@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { ClassInfo, PropertyInfo } from './sqlParser';
+import { ClassInfo, PropertyInfo } from './sqlProcessor';
 
-export class UuidTreeProvider implements vscode.TreeDataProvider<UuidTreeItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<UuidTreeItem | undefined>();
+export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<ExplorerItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   constructor(private classes: ClassInfo[]) { }
@@ -12,14 +12,14 @@ export class UuidTreeProvider implements vscode.TreeDataProvider<UuidTreeItem> {
     this._onDidChangeTreeData.fire(undefined);
   }
 
-  getTreeItem(element: UuidTreeItem): vscode.TreeItem {
+  getTreeItem(element: ExplorerItem): vscode.TreeItem {
     return element;
   }
 
-  getChildren(element?: UuidTreeItem): Thenable<UuidTreeItem[]> {
+  getChildren(element?: ExplorerItem): Thenable<ExplorerItem[]> {
     if (!element) {
       return Promise.resolve(
-        this.classes.map(cls => new UuidTreeItem(
+        this.classes.map(cls => new ExplorerItem(
           cls.name,
           cls.id,
           cls.description,
@@ -32,13 +32,12 @@ export class UuidTreeProvider implements vscode.TreeDataProvider<UuidTreeItem> {
 
     if (element.contextValue === 'class') {
       const cls = element.data as ClassInfo;
-
       return Promise.resolve(
-        cls.properties.map(prop => new UuidTreeItem(
+        cls.properties.map(prop => new ExplorerItem(
           prop.name,
           prop.id,
           prop.description,
-          vscode.TreeItemCollapsibleState.None, // Свойства не раскрываются
+          vscode.TreeItemCollapsibleState.None,
           'property',
           prop
         ))
@@ -49,12 +48,12 @@ export class UuidTreeProvider implements vscode.TreeDataProvider<UuidTreeItem> {
   }
 }
 
-export class UuidTreeItem extends vscode.TreeItem {
+class ExplorerItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly uuid: string,
-    public readonly description: string,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    description: string,
+    collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly contextValue: 'class' | 'property',
     public readonly data: ClassInfo | PropertyInfo
   ) {

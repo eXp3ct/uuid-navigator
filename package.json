@@ -167,7 +167,7 @@
   "publisher": "eXp3ct",
   "scripts": {
     "vscode:prepublish": "yarn run compile",
-    "compile": "tsc -p ./",
+    "compile": "node build-readme.js && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "yarn run compile && yarn run lint --fix",
     "lint": "eslint src",

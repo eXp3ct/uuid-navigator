@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ExtensionConfig } from './types';
+import { ExtensionConfig } from './models';
 
 export function getConfig(): ExtensionConfig {
   const config = vscode.workspace.getConfiguration('uuidNavigator');
@@ -31,5 +31,3 @@ export function getConfig(): ExtensionConfig {
 
   return baseConfig;
 }
-
-export { ExtensionConfig };
