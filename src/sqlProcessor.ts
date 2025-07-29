@@ -352,7 +352,7 @@ export class SqlProcessor {
     objects.forEach(obj => {
       const cls = classMap.get(obj.classId);
       if (cls) {
-        if (!cls.objects) cls.objects = [];
+        if (!cls.objects) {cls.objects = [];}
         if (!cls.objects.some(o => o.id === obj.id)) {
           cls.objects.push(obj);
         }
@@ -361,12 +361,12 @@ export class SqlProcessor {
 
     // Теперь обработаем статусы и другие объекты по структуре папок
     objects.forEach(obj => {
-      if (!obj.filePath) return;
+      if (!obj.filePath) {return;}
 
       // Извлекаем имя класса из пути к файлу
       // Формат: <Имя класса>/<номер>. Конфигурация объектов <Имя класса>.sql
       const pathParts = obj.filePath.split(/[\\/]/);
-      if (pathParts.length < 2) return;
+      if (pathParts.length < 2) {return;}
 
       const classNameFromPath = pathParts[pathParts.length - 2]; // Имя папки - имя класса
       const cls = classNameMap.get(classNameFromPath.toLowerCase());
@@ -382,18 +382,18 @@ export class SqlProcessor {
     // Дополнительно: свяжем статусы по имени файла
     const statusFiles = new Set<string>();
     objects.forEach(obj => {
-      if (!obj.filePath) return;
+      if (!obj.filePath) {return;}
 
       // Если файл называется "*Конфигурация объектов*" - это статусы
       if (obj.filePath.includes('Конфигурация объектов')) {
         const pathParts = obj.filePath.split(/[\\/]/);
-        if (pathParts.length < 2) return;
+        if (pathParts.length < 2) {return;}
 
         const classNameFromPath = pathParts[pathParts.length - 2];
         const cls = classNameMap.get(classNameFromPath.toLowerCase());
 
         if (cls) {
-          if (!cls.objects) cls.objects = [];
+          if (!cls.objects) {cls.objects = [];}
           if (!cls.objects.some(o => o.id === obj.id)) {
             cls.objects.push(obj);
             statusFiles.add(obj.filePath);
@@ -404,7 +404,7 @@ export class SqlProcessor {
 
     // Удалим дубликаты - объекты, которые уже были связаны по class_id
     classes.forEach(cls => {
-      if (!cls.objects) return;
+      if (!cls.objects) {return;}
 
       const uniqueObjects = [];
       const seenIds = new Set();
