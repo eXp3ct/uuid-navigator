@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.3.1",
+  "version": "1.4.1",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -27,15 +27,18 @@
     "commands": [
       {
         "command": "uuid-navigator.findUuids",
-        "title": "Find all UUIDs in current file"
+        "title": "Find all UUIDs in current file",
+        "category": "UUID Navigator"        
       },
       {
         "command": "uuid-navigator.clearHighlights",
-        "title": "Clear UUID highlights"
+        "title": "Clear UUID highlights",
+        "category": "UUID Navigator"        
       },
       {
         "command": "uuid-navigator.refreshBlameCache",
-        "title": "Refresh UUID Blame Cache"
+        "title": "Refresh UUID Blame Cache",
+        "category": "UUID Navigator"        
       },
       {
         "command": "uuid-navigator.showExplorer",
@@ -59,6 +62,16 @@
       {
         "command": "uuid-navigator.goToDefinition",
         "title": "Go to UUID Definition",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.validateCurrentFile",
+        "title": "Validate Current SQL File",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.showValidatorLogs",
+        "title": "Show Validator Logs",
         "category": "UUID Navigator"
       }
     ],
@@ -130,6 +143,31 @@
           ],
           "description": "Template for blame message. Select which elements to show and their order",
           "scope": "resource"
+        },
+        "uuidNavigator.enableValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic SQL validation"
+        },
+        "uuidNavigator.validateJson": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate JSON structures in SQL files"
+        },
+        "uuidNavigator.validateInserts": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate INSERT statements (Not implemented)"
+        },
+        "uuidNavigator.validateParameters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate SQL parameters (:my_utc_now, etc.) (Not implemented)"
+        },
+        "uuidNavigator.cursorPointer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Pointer cursor on uuid hover"
         }
       }
     },
@@ -193,6 +231,7 @@
   "dependencies": {
     "@types/lodash": "^4.17.20",
     "@types/sinon": "^17.0.4",
+    "jsonc-parser": "^3.3.1",
     "lodash": "^4.17.21",
     "pgsql-parser": "^17.7.10"
   }
