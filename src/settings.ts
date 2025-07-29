@@ -10,7 +10,10 @@ export function getConfig(): ExtensionConfig {
     underline: config.get('underline', true),
     backgroundColor: config.get('backgroundColor', '#64c8ff1a'),
     showNotifications: config.get('showNotifications', true),
-    showBlameOnHover: config.get('showBlameOnHover', true)
+    showBlameOnHover: config.get('showBlameOnHover', true),
+    enableValidation: config.get('enableValidation', true),
+    validateJson: config.get('validateJson', true),
+    cursorPointer: config.get('cursorPointer', true)
   };
 
   if (baseConfig.showBlameOnHover) {
