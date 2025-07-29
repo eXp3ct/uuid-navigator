@@ -13,10 +13,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	registerNavigationCommands(context);
 
 	const sqlProcessor = new SqlProcessor();
-	const { classes, properties } = await sqlProcessor.parseAllSqlFiles();
+	const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
 
 	new BlameProvider(context, classes, properties);
-	const explorerProvider = new ExplorerProvider(classes);
+	const explorerProvider = new ExplorerProvider(classes, objects);
 
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
 		treeDataProvider: explorerProvider
@@ -58,8 +58,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 
 		vscode.commands.registerCommand('uuid-navigator.refreshExplorer', async () => {
-			const { classes } = await sqlProcessor.parseAllSqlFiles(true);
-			explorerProvider.refresh(classes);
+			const { classes, objects } = await sqlProcessor.parseAllSqlFiles(true);
+			explorerProvider.refresh(classes, objects);
 		}),
 
 		vscode.commands.registerCommand('uuid-navigator.insertUuid', (uuid: string) => {
@@ -86,8 +86,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
 	const refreshTree = debounce(async () => {
-		const { classes } = await sqlProcessor.parseAllSqlFiles();
-		explorerProvider.refresh(classes);
+		const { classes, objects } = await sqlProcessor.parseAllSqlFiles();
+		explorerProvider.refresh(classes, objects);
 	}, 500);
 
 	watcher.onDidChange(uri => {
