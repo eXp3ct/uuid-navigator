@@ -15,7 +15,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const sqlProcessor = new SqlProcessor();
 	const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
 
-	new BlameProvider(context, classes, properties);
+	new BlameProvider(context, classes, properties, objects);
 	const explorerProvider = new ExplorerProvider(classes, objects);
 
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
@@ -29,7 +29,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		treeView,
 
 		vscode.commands.registerCommand('uuid-navigator.goToDefinition', async (uuid: string) => {
-			const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid);
+			const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid);
 
 			if (target?.filePath) {
 				try {
