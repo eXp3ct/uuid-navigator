@@ -44,11 +44,11 @@ export class BlameProvider {
         {
           provideHover: async (document, position) => {
             const range = getUuidRange(document, position);
-            if (!range) return null;
+            if (!range) {return null;}
 
             const uuid = document.getText(range).replace(/["']/g, '');
             const info = this.uuidFinder.getInfo(uuid);
-            if (!info) return null;
+            if (!info) {return null;}
 
             return new vscode.Hover(this.createBlameMessage(info));
           }

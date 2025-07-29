@@ -101,8 +101,8 @@ export class SqlProcessor {
   }
 
   private isCacheValid(currentHashes: Map<string, string>): boolean {
-    if (!this.cache) return false;
-    if (this.cache.fileHashes.size !== currentHashes.size) return false;
+    if (!this.cache) {return false;}
+    if (this.cache.fileHashes.size !== currentHashes.size) {return false;}
 
     for (const [path, hash] of currentHashes) {
       if (this.cache.fileHashes.get(path) !== hash) {
@@ -147,7 +147,7 @@ export class SqlProcessor {
       const columns = match[2].split(',').map(c => c.trim().replace(/["']/g, ''));
       const valueMatches = this.extractValueGroups(match[3]);
 
-      if (!valueMatches) continue;
+      if (!valueMatches) {continue;}
 
       const values = valueMatches.map(vGroup =>
         vGroup.slice(1, -1).split(/(?<!\\),/).map(val => this.normalizeValue(val.trim()))
@@ -174,7 +174,7 @@ export class SqlProcessor {
 
     for (let i = 0; i < str.length; i++) {
       if (str[i] === '(') {
-        if (depth === 0) start = i;
+        if (depth === 0) {start = i;}
         depth++;
       }
       else if (str[i] === ')') {
@@ -252,19 +252,19 @@ export class SqlProcessor {
         if (insert.tableName === CLASS_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const classInfo = this.parseClass(insert, i, filePath, document);
-            if (classInfo) classes.push(classInfo);
+            if (classInfo) {classes.push(classInfo);}
           }
         }
         else if (insert.tableName === PROPERTY_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const property = this.parseProperty(insert, i, filePath, document);
-            if (property) properties.push(property);
+            if (property) {properties.push(property);}
           }
         }
         else if (insert.tableName === LINK_TABLE) {
           for (const values of insert.values) {
             const link = this.parseLink(insert.columns, values);
-            if (link) links.push(link);
+            if (link) {links.push(link);}
           }
         }
       } catch (error) {
@@ -291,7 +291,7 @@ export class SqlProcessor {
     const name = this.getValue(columns, row, 'name');
     const description = this.getValue(columns, row, 'description');
 
-    if (!id || !name) return null;
+    if (!id || !name) {return null;}
 
     return {
       id,
@@ -369,8 +369,8 @@ export class SqlProcessor {
           cls.properties.push(prop);
         }
       } else {
-        if (!cls) console.warn(`Class not found for link: ${link.classId}`);
-        if (!prop) console.warn(`Property not found for link: ${link.propertyId}`);
+        if (!cls) {console.warn(`Class not found for link: ${link.classId}`);}
+        if (!prop) {console.warn(`Property not found for link: ${link.propertyId}`);}
       }
     });
   }

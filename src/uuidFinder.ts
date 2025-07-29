@@ -42,7 +42,7 @@ export class UuidFinder {
 
   getInfo(uuid: string): UuidInfo | undefined {
     const cached = this.cache.find(info => info.uuid === uuid);
-    if (!cached) return undefined;
+    if (!cached) {return undefined;}
 
     const result: UuidInfo = {
       uuid,

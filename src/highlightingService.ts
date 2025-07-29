@@ -30,10 +30,10 @@ function updateDecorationStyle() {
 }
 
 export function highlightAllUuids(editor = vscode.window.activeTextEditor) {
-  if (!editor || !isSqlFile(editor.document)) return;
+  if (!editor || !isSqlFile(editor.document)) {return;}
 
   const config = getConfig();
-  if (!config.applyStyles) return;
+  if (!config.applyStyles) {return;}
 
   const decorations = findUuidDecorations(editor.document);
   editor.setDecorations(decorationType, decorations);
