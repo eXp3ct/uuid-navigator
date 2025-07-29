@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
-import { ClassInfo, PropertyInfo } from './sqlProcessor';
+import { ClassInfo, ObjectInfo, PropertyInfo } from './sqlProcessor';
 
 export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<ExplorerItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  constructor(private classes: ClassInfo[]) { }
+  constructor(private classes: ClassInfo[], private objects: ObjectInfo[]) { }
 
-  refresh(classes: ClassInfo[]): void {
+  refresh(classes: ClassInfo[], objects: ObjectInfo[]): void {
     this.classes = classes;
+    this.objects = objects;
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -18,6 +19,7 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
 
   getChildren(element?: ExplorerItem): Thenable<ExplorerItem[]> {
     if (!element) {
+      // Корневой уровень - показываем классы
       return Promise.resolve(
         this.classes.map(cls => new ExplorerItem(
           cls.name,
@@ -32,6 +34,37 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
 
     if (element.contextValue === 'class') {
       const cls = element.data as ClassInfo;
+      const items: ExplorerItem[] = [];
+
+      // Добавляем свойства класса
+      if (cls.properties && cls.properties.length > 0) {
+        items.push(new ExplorerItem(
+          'Свойства',
+          'properties-' + cls.id,
+          'Свойства класса ' + cls.name,
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'properties-folder',
+          cls
+        ));
+      }
+
+      // Добавляем объекты класса (включая статусы)
+      if (cls.objects && cls.objects.length > 0) {
+        items.push(new ExplorerItem(
+          'Объекты',
+          'objects-' + cls.id,
+          'Объекты класса ' + cls.name,
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'objects-folder',
+          cls
+        ));
+      }
+
+      return Promise.resolve(items);
+    }
+
+    if (element.contextValue === 'properties-folder') {
+      const cls = element.data as ClassInfo;
       return Promise.resolve(
         cls.properties.map(prop => new ExplorerItem(
           prop.name,
@@ -40,6 +73,20 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
           vscode.TreeItemCollapsibleState.None,
           'property',
           prop
+        ))
+      );
+    }
+
+    if (element.contextValue === 'objects-folder') {
+      const cls = element.data as ClassInfo;
+      return Promise.resolve(
+        cls.objects.map(obj => new ExplorerItem(
+          obj.name,
+          obj.id,
+          obj.description,
+          vscode.TreeItemCollapsibleState.None,
+          'object',
+          obj
         ))
       );
     }
@@ -54,8 +101,8 @@ class ExplorerItem extends vscode.TreeItem {
     public readonly uuid: string,
     description: string,
     collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly contextValue: 'class' | 'property',
-    public readonly data: ClassInfo | PropertyInfo
+    public readonly contextValue: 'class' | 'property' | 'object' | 'properties-folder' | 'objects-folder',
+    public readonly data: ClassInfo | PropertyInfo | ObjectInfo
   ) {
     super(label, collapsibleState);
     this.tooltip = `${description}\nUUID: ${uuid}`;
@@ -65,5 +112,24 @@ class ExplorerItem extends vscode.TreeItem {
       title: 'Insert UUID',
       arguments: [uuid]
     };
+
+    // Устанавливаем иконки в зависимости от типа элемента
+    switch (contextValue) {
+      case 'class':
+        this.iconPath = new vscode.ThemeIcon('symbol-class');
+        break;
+      case 'property':
+        this.iconPath = new vscode.ThemeIcon('symbol-property');
+        break;
+      case 'object':
+        this.iconPath = new vscode.ThemeIcon('symbol-object');
+        break;
+      case 'properties-folder':
+        this.iconPath = new vscode.ThemeIcon('symbol-namespace');
+        break;
+      case 'objects-folder':
+        this.iconPath = new vscode.ThemeIcon('symbol-array');
+        break;
+    }
   }
 }

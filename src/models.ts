@@ -22,7 +22,7 @@ export interface ExtensionContext extends vscode.ExtensionContext {
 
 export interface UuidInfo {
   uuid: string;
-  type: 'class' | 'property';
+  type: 'class' | 'property' | 'object';
   className?: string;
   classUuid?: string;
   propertyName?: string;

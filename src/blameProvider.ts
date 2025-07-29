@@ -3,7 +3,7 @@ import { UuidInfo } from './models';
 import { UuidFinder } from './uuidFinder';
 import { getConfig } from './settings';
 import { BlameTemplateRenderer } from './templateRenderer';
-import { ClassInfo, PropertyInfo, SqlProcessor } from './sqlProcessor';
+import { ClassInfo, ObjectInfo, PropertyInfo, SqlProcessor } from './sqlProcessor';
 import { getUuidRange } from './utils';
 
 export class BlameProvider {
@@ -14,9 +14,10 @@ export class BlameProvider {
   constructor(
     private context: vscode.ExtensionContext,
     classes: ClassInfo[],
-    properties: PropertyInfo[]
+    properties: PropertyInfo[],
+    objects: ObjectInfo[]
   ) {
-    this.uuidFinder = new UuidFinder(classes, properties);
+    this.uuidFinder = new UuidFinder(classes, properties, objects);
     this.initialize();
 
     this.configListener = vscode.workspace.onDidChangeConfiguration(e => {
