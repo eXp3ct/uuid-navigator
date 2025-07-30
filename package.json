@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.4.3",
+  "version": "1.4.2",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -206,15 +206,28 @@
         "language": "sql",
         "path": "./snippets/sql-snippets.json"
       }
+    ],
+    "inputs": [
+      {
+        "id": "classUuid",
+        "type": "command",
+        "command": "uuid-navigator.generateUuid",
+        "args": "classUuid"
+      },
+      {
+        "id": "propUuid",
+        "type": "command",
+        "command": "uuid-navigator.generateUuid",
+        "args": "propUuid"
+      }
     ]
   },
   "publisher": "eXp3ct",
   "scripts": {
-    "vscode:prepublish": "yarn run build",
+    "vscode:prepublish": "yarn run compile",
     "compile": "node build-readme.js && tsc -p ./",
-    "build": "yarn run compile && esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode",
-    "watch": "concurrently \"tsc -watch -p ./\" \"esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode --watch\"",
-    "pretest": "yarn run build && yarn run lint --fix",
+    "watch": "tsc -watch -p ./",
+    "pretest": "yarn run compile && yarn run lint --fix",
     "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package",
@@ -231,15 +244,16 @@
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
-    "concurrently": "^9.2.0",
-    "esbuild": "^0.25.8",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3",
     "vsce": "^2.15.0"
   },
   "dependencies": {
     "@types/lodash": "^4.17.20",
+    "@types/sinon": "^17.0.4",
     "jsonc-parser": "^3.3.1",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "pgsql-parser": "^17.7.10",
+    "uuid": "^11.1.0"
   }
 }
