@@ -5,6 +5,7 @@ import { SqlProcessor } from './sqlProcessor';
 import { SqlValidator } from './sqlValidator';
 import { ExplorerProvider } from './explorerProvider';
 import { getConfig } from './settings';
+import { BlameProvider } from './blameProvider';
 
 type CommandDependencies = {
   sqlProcessor: SqlProcessor;
@@ -14,6 +15,7 @@ type CommandDependencies = {
   properties: any[];
   objects: any[];
   treeView: vscode.TreeView<any>;
+  blameProvider: BlameProvider;
 };
 
 const COMMANDS = {
@@ -24,14 +26,15 @@ const COMMANDS = {
   VALIDATE_CURRENT_FILE: 'uuid-navigator.validateCurrentFile',
   SHOW_VALIDATION_LOGS: 'uuid-navigator.showValidatorLogs',
   INSERT_UUID: 'uuid-navigator.insertUuid',
-  EXPLORER_FOCUS: 'uuidExplorer.focus'
+  EXPLORER_FOCUS: 'uuid-navigator.focusTreeView',
+  REFRESH_BLAME_CACHE: 'uuid-navigator.refreshBlameCache'
 };
 
 export function registerCommands(
   context: vscode.ExtensionContext,
   deps: CommandDependencies
 ) {
-  const { sqlProcessor, sqlValidator, explorerProvider, classes, properties, objects, treeView } = deps;
+  const { sqlProcessor, sqlValidator, explorerProvider, classes, properties, objects, treeView, blameProvider } = deps;
 
   // Регистрация команд
   const commands = [
@@ -41,6 +44,10 @@ export function registerCommands(
     vscode.workspace.onDidChangeTextDocument(() => highlightAllUuids()),
     treeView,
 
+    //Информация
+    vscode.commands.registerCommand(COMMANDS.REFRESH_BLAME_CACHE, () =>
+      handleRefreshBlameCache(sqlProcessor, blameProvider)),
+
     // Навигация
     vscode.commands.registerCommand(COMMANDS.GOTO_DEFINITION, (uuid: string) =>
       handleGoToDefinition(uuid, classes, properties, objects)),
@@ -49,8 +56,11 @@ export function registerCommands(
     vscode.commands.registerCommand(COMMANDS.REFRESH_EXPLORER, () =>
       handleRefreshExplorer(sqlProcessor, explorerProvider)),
 
+    vscode.commands.registerCommand(COMMANDS.EXPLORER_FOCUS, () =>
+      handleFocusTreeView()),
+
     vscode.commands.registerCommand(COMMANDS.SHOW_EXPLORER, () =>
-      handleShowExplorer(sqlProcessor)),
+      handleShowExplorer()),
 
     // Валидация
     vscode.commands.registerCommand(COMMANDS.VALIDATE_CURRENT_FILE, () =>
@@ -71,8 +81,26 @@ export function setupFileWatchers(
   context: vscode.ExtensionContext,
   sqlProcessor: SqlProcessor,
   sqlValidator: SqlValidator,
-  explorerProvider: ExplorerProvider
+  explorerProvider: ExplorerProvider,
+  blameProvider: BlameProvider
 ) {
+  // Общая функция создания вотчеров
+  const createFileWatcher = (callback: () => Promise<void>) => {
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
+    const debouncedRefresh = debounce(callback, 500);
+
+    watcher.onDidChange(uri => sqlProcessor.invalidateCacheForFile(uri.fsPath));
+    watcher.onDidCreate(() => sqlProcessor.invalidateCache());
+    watcher.onDidDelete(() => sqlProcessor.invalidateCache());
+
+    [watcher.onDidChange, watcher.onDidCreate, watcher.onDidDelete].forEach(
+      event => event(() => debouncedRefresh())
+    );
+
+    context.subscriptions.push(watcher);
+    return watcher;
+  };
+
   // Валидация документов
   const validateDocument = (document: vscode.TextDocument) => {
     const config = getConfig();
@@ -89,25 +117,21 @@ export function setupFileWatchers(
     })
   );
 
-  // Наблюдатель за файлами
-  const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
-  const refreshTree = debounce(async () => {
+  // Вотчер для TreeView
+  createFileWatcher(async () => {
     const { classes, objects } = await sqlProcessor.parseAllSqlFiles();
     explorerProvider.refresh(classes, objects);
-  }, 500);
+  });
 
-  watcher.onDidChange(uri => sqlProcessor.invalidateCacheForFile(uri.fsPath));
-  watcher.onDidCreate(() => sqlProcessor.invalidateCache());
-  watcher.onDidDelete(() => sqlProcessor.invalidateCache());
-
-  [watcher.onDidChange, watcher.onDidCreate, watcher.onDidDelete].forEach(
-    event => event(() => refreshTree())
-  );
-
-  context.subscriptions.push(watcher);
+  // Вотчер для BlameProvider
+  createFileWatcher(async () => {
+    const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
+    await blameProvider.refresh(classes, properties, objects);
+  });
 }
 
-// Обработчики команд (можно вынести в отдельный файл при необходимости)
+
+
 async function handleGoToDefinition(uuid: string, classes: any[], properties: any[], objects: any[]) {
   const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid);
   if (!target?.filePath) {
@@ -134,12 +158,20 @@ async function handleGoToDefinition(uuid: string, classes: any[], properties: an
   }
 }
 
+async function handleRefreshBlameCache(sqlProcessor: SqlProcessor, blameProvider: BlameProvider) {
+  const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles(true);
+
+  await blameProvider.refresh(classes, properties, objects);
+  vscode.window.showInformationMessage('UUID blame cache refreshed');
+}
+
+
 async function handleRefreshExplorer(sqlProcessor: SqlProcessor, explorerProvider: ExplorerProvider) {
   const { classes, objects } = await sqlProcessor.parseAllSqlFiles(true);
   explorerProvider.refresh(classes, objects);
 }
 
-async function handleShowExplorer(sqlProcessor: SqlProcessor) {
+async function handleShowExplorer() {
   try {
     await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER);
     await vscode.commands.executeCommand(COMMANDS.EXPLORER_FOCUS);
@@ -148,6 +180,15 @@ async function handleShowExplorer(sqlProcessor: SqlProcessor) {
     console.error(error);
   }
 }
+
+async function handleFocusTreeView() {
+  try {
+    await vscode.commands.executeCommand('uuidExplorer.focus');
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 
 function handleValidateCurrentFile(sqlValidator: SqlValidator) {
   const editor = vscode.window.activeTextEditor;
@@ -158,3 +199,7 @@ function handleInsertUuid(uuid: string) {
   const editor = vscode.window.activeTextEditor;
   editor?.edit(editBuilder => editBuilder.insert(editor.selection.active, uuid));
 }
+
+
+
+

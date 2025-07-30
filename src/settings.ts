@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ExtensionConfig } from './models';
 
 export function getConfig(): ExtensionConfig {
-  const config = vscode.workspace.getConfiguration('uuidNavigator');
+  const config = vscode.workspace.getConfiguration('uuidNavigator', null);
 
   const baseConfig = {
     applyStyles: config.get('applyStyles', true),

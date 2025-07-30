@@ -14,13 +14,13 @@ export class UuidFinder {
   }
 
   async initialize() {
-    await this.buildCache();
+    await this.buildCache(this.classes, this.properties, this.objects);
   }
 
-  async buildCache(): Promise<UuidInfo[]> {
+  async buildCache(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]): Promise<UuidInfo[]> {
     this.cache = [];
 
-    this.classes.forEach(cls => {
+    classes.forEach(cls => {
       this.cache.push({
         uuid: cls.id,
         className: cls.name,
@@ -29,7 +29,7 @@ export class UuidFinder {
       });
     });
 
-    this.properties.forEach(prop => {
+    properties.forEach(prop => {
       this.cache.push({
         uuid: prop.id,
         propertyName: prop.name,
@@ -39,7 +39,7 @@ export class UuidFinder {
       });
     });
 
-    this.objects.forEach(obj => {
+    objects.forEach(obj => {
       this.cache.push({
         uuid: obj.id,
         propertyName: obj.name,
@@ -109,7 +109,13 @@ export class UuidFinder {
     return result;
   }
 
-  async refreshCache() {
-    await this.buildCache();
+  public updateData(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
+    this.classes = classes;
+    this.properties = properties;
+    this.objects = objects;
+  }
+
+  public async refreshCache(): Promise<void> {
+    await this.buildCache(this.classes, this.properties, this.objects);
   }
 }

@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
 
 	// Создание провайдеров 
-	new BlameProvider(context, classes, properties, objects);
+	const blameProvider = new BlameProvider(context, classes, properties, objects);
 	const explorerProvider = new ExplorerProvider(classes, objects);
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
 		treeDataProvider: explorerProvider
@@ -34,10 +34,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		classes,
 		properties,
 		objects,
-		treeView
+		treeView,
+		blameProvider
 	});
 
-	setupFileWatchers(context, sqlProcessor, sqlValidator, explorerProvider);
+	setupFileWatchers(context, sqlProcessor, sqlValidator, explorerProvider, blameProvider);
 
 	// Делаем первоначальные действия
 	setTimeout(() => {
