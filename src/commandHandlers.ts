@@ -25,7 +25,7 @@ const COMMANDS = {
   SHOW_VALIDATION_LOGS: 'uuid-navigator.showValidatorLogs',
   INSERT_UUID: 'uuid-navigator.insertUuid',
   EXPLORER_FOCUS: 'uuidExplorer.focus'
-}
+};
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -75,7 +75,7 @@ export function setupFileWatchers(
 ) {
   // Валидация документов
   const validateDocument = (document: vscode.TextDocument) => {
-    const config = getConfig()
+    const config = getConfig();
     if (config.enableValidation) {
       sqlValidator.validateDocument(document);
     }
