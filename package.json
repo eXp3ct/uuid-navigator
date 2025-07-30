@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -28,17 +28,17 @@
       {
         "command": "uuid-navigator.findUuids",
         "title": "Find all UUIDs in current file",
-        "category": "UUID Navigator"        
+        "category": "UUID Navigator"
       },
       {
         "command": "uuid-navigator.clearHighlights",
         "title": "Clear UUID highlights",
-        "category": "UUID Navigator"        
+        "category": "UUID Navigator"
       },
       {
         "command": "uuid-navigator.refreshBlameCache",
         "title": "Refresh UUID Blame Cache",
-        "category": "UUID Navigator"        
+        "category": "UUID Navigator"
       },
       {
         "command": "uuid-navigator.showExplorer",
@@ -200,6 +200,26 @@
         "key": "ctrl+alt+u",
         "command": "uuid-navigator.focusTreeView"
       }
+    ],
+    "snippets": [
+      {
+        "language": "sql",
+        "path": "./snippets/sql-snippets.json"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "classUuid",
+        "type": "command",
+        "command": "uuid-navigator.generateUuid",
+        "args": "classUuid"
+      },
+      {
+        "id": "propUuid",
+        "type": "command",
+        "command": "uuid-navigator.generateUuid",
+        "args": "propUuid"
+      }
     ]
   },
   "publisher": "eXp3ct",
@@ -233,6 +253,7 @@
     "@types/sinon": "^17.0.4",
     "jsonc-parser": "^3.3.1",
     "lodash": "^4.17.21",
-    "pgsql-parser": "^17.7.10"
+    "pgsql-parser": "^17.7.10",
+    "uuid": "^11.1.0"
   }
 }
