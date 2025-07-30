@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.4.4",
+  "version": "1.5.4",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -225,16 +225,13 @@
   "publisher": "eXp3ct",
   "scripts": {
     "vscode:prepublish": "yarn run compile",
-    "compile": "node build-readme.js && tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "node build-readme.js && webpack --mode production",
+    "watch": "webpack --watch --mode development",
     "pretest": "yarn run compile && yarn run lint --fix",
     "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package",
-    "publish": "vsce publish",
-    "publish:patch": "vsce publish patch",
-    "publish:minor": "vsce publish minor",
-    "publish:major": "vsce publish major"
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -245,15 +242,16 @@
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.25.1",
+    "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
-    "vsce": "^2.15.0"
+    "vsce": "^2.15.0",
+    "webpack": "^5.101.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-node-externals": "^3.0.0"
   },
   "dependencies": {
-    "@types/lodash": "^4.17.20",
-    "@types/sinon": "^17.0.4",
+    "@types/lodash.debounce": "^4.0.9",
     "jsonc-parser": "^3.3.1",
-    "lodash": "^4.17.21",
-    "pgsql-parser": "^17.7.10",
-    "uuid": "^11.1.0"
+    "lodash.debounce": "^4.0.8"
   }
 }

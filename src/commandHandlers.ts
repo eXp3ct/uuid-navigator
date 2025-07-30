@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { debounce } from 'lodash';
+import debounce from 'lodash.debounce';
 import { highlightAllUuids } from './highlightingService';
 import { SqlProcessor } from './sqlProcessor';
 import { SqlValidator } from './sqlValidator';
