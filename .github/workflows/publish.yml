@@ -25,7 +25,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build extension
-        run: yarn build
+        run: yarn compile
 
       - name: Package extension
         run: yarn package
@@ -38,7 +38,7 @@ jobs:
       - name: Publish to Marketplace
         uses: lannonbr/vsce-action@4.0.0
         with:
-          args: "publish -p $VSCE_TOKEN --yarn"
+          args: "publish -p $VSCE_TOKEN"
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
 
