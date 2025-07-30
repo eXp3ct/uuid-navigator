@@ -13,7 +13,53 @@ on:
         default: 'production'
   
 jobs:
-  publish:
+  publish-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build extension
+        run: yarn compile
+
+      - name: Package extension
+        run: yarn package
+
+      - name: Get version
+        id: get_version
+        run: |
+          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Publish to Marketplace
+        uses: lannonbr/vsce-action@4.0.0
+        with:
+          args: "publish -p $VSCE_TOKEN"
+        env:
+          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          name: "v${{ steps.get_version.outputs.VERSION }}"
+          body_path: CHANGELOG.md
+          files: |
+            *.vsix
+
+            
+  publish-on-merge:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && !contains(github.event.pull_request.title, '[skip publish]')
     runs-on: ubuntu-latest
     environment: production
