@@ -310,7 +310,7 @@ export class SqlProcessor {
 
     const parsed = { classes, properties, links, objects };
     this.fileCache.set(filePath, { hash: fileHash, parsed });
-    console.warn('File parsed', filePath)
+    console.warn('File parsed', filePath);
     return parsed;
   }
 

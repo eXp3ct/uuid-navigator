@@ -38,7 +38,7 @@ export class BlameProvider {
   private updateHoverProvider() {
     this.hoverProvider?.dispose();
     this.hoverProvider = undefined;
-    const config = getConfig()
+    const config = getConfig();
 
     if (config.showBlameOnHover) {
       this.hoverProvider = vscode.languages.registerHoverProvider(
