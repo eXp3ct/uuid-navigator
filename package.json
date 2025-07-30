@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.5.4",
+  "version": "1.6.4",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -57,7 +57,8 @@
       },
       {
         "command": "uuid-navigator.focusTreeView",
-        "title": "UUID Navigator: Focus Tree View"
+        "title": "UUID Navigator: Focus Tree View",
+        "category": "UUID Navigator"
       },
       {
         "command": "uuid-navigator.goToDefinition",
@@ -171,12 +172,21 @@
         }
       }
     },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "uuid-navigator",
+          "title": "UUID Navigator",
+          "icon": "images/icon.png"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "uuid-navigator": [
         {
           "id": "uuidExplorer",
-          "name": "UUID Explorer",
-          "icon": "https://www.flaticon.com/free-icons/navigation"
+          "name": "Explorer",
+          "icon": "images/icon.png"
         }
       ]
     },
@@ -205,20 +215,6 @@
       {
         "language": "sql",
         "path": "./snippets/sql-snippets.json"
-      }
-    ],
-    "inputs": [
-      {
-        "id": "classUuid",
-        "type": "command",
-        "command": "uuid-navigator.generateUuid",
-        "args": "classUuid"
-      },
-      {
-        "id": "propUuid",
-        "type": "command",
-        "command": "uuid-navigator.generateUuid",
-        "args": "propUuid"
       }
     ]
   },

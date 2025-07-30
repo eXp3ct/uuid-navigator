@@ -264,6 +264,7 @@ export class SqlProcessor {
   private async parseFile(filePath: string, fileHash: string): Promise<ParsedFile> {
     const cached = this.fileCache.get(filePath);
     if (cached && cached.hash === fileHash) {
+      console.log('File parsed from cache', fileHash);
       return cached.parsed;
     }
 
@@ -309,7 +310,7 @@ export class SqlProcessor {
 
     const parsed = { classes, properties, links, objects };
     this.fileCache.set(filePath, { hash: fileHash, parsed });
-
+    console.warn('File parsed', filePath)
     return parsed;
   }
 

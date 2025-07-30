@@ -20,6 +20,7 @@ export class BlameProvider {
     this.uuidFinder = new UuidFinder(classes, properties, objects);
     this.initialize();
 
+    //TODO убрать от сюда
     this.configListener = vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('uuidNavigator.showBlameOnHover')) {
         this.updateHoverProvider();
@@ -32,14 +33,14 @@ export class BlameProvider {
   private async initialize() {
     await this.uuidFinder.initialize();
     this.updateHoverProvider();
-    this.registerCommands();
   }
 
   private updateHoverProvider() {
     this.hoverProvider?.dispose();
     this.hoverProvider = undefined;
+    const config = getConfig()
 
-    if (getConfig().showBlameOnHover) {
+    if (config.showBlameOnHover) {
       this.hoverProvider = vscode.languages.registerHoverProvider(
         ['sql', 'mssql'],
         {
@@ -62,15 +63,6 @@ export class BlameProvider {
     }
   }
 
-  private registerCommands() {
-    this.context.subscriptions.push(
-      vscode.commands.registerCommand('uuid-navigator.refreshBlameCache', async () => {
-        await this.uuidFinder.refreshCache();
-        vscode.window.showInformationMessage('UUID blame cache refreshed');
-      })
-    );
-  }
-
   private createBlameMessage(info: UuidInfo): vscode.MarkdownString {
     const config = getConfig();
     const template = config.blameTemplate || [];
@@ -79,6 +71,12 @@ export class BlameProvider {
     const markdown = new vscode.MarkdownString(content);
     markdown.isTrusted = true;
     return markdown;
+  }
+
+  public async refresh(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
+    this.uuidFinder.updateData(classes, properties, objects);
+    
+    await this.uuidFinder.refreshCache();
   }
 
   dispose() {
