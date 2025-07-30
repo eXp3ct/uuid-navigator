@@ -4,12 +4,26 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "webpack watch",
 			"type": "npm",
-			"script": "watch",
-			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
+			"script": "watch", // Assuming "watch": "webpack --watch" in your package.json
+			"isBackground": true, // For watch mode
+			"problemMatcher": {
+				"owner": "webpack",
+				"pattern": [
+					{
+						"regexp": "ERROR in (.*) (\\d+):(\\d+)",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"message": 4
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^webpack.*compiling", // Adjust based on your Webpack output
+					"endsPattern": "^webpack.*compiled successfully" // Adjust based on your Webpack output
+				}
 			},
 			"group": {
 				"kind": "build",
