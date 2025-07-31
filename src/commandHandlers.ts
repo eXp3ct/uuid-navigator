@@ -84,8 +84,8 @@ export function registerCommands(
 
     vscode.commands.registerCommand(COMMANDS.MANAGE_CLASS_ALIASES, (item: ExplorerItem) =>
       handleManageClassAliases(item, aliasService, classes, async () => {
-        await vscode.commands.executeCommand(COMMANDS.REFRESH_BLAME_CACHE)
-        await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER)
+        await vscode.commands.executeCommand(COMMANDS.REFRESH_BLAME_CACHE);
+        await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER);
       })
     ),
 

@@ -29,7 +29,7 @@ export class AliasService {
   }
 
   async clearAllAliases(): Promise<void> {
-    this.aliases = {}
+    this.aliases = {};
     await this.saveAliases();
   }
 

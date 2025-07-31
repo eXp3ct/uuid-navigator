@@ -68,7 +68,7 @@ export class SqlProcessor {
   constructor(private aliasService: AliasService) {
     this.aliasService.onAliasesChanged(() => {
       this.invalidateCache();
-    })
+    });
   }
 
   public async parseAllSqlFiles(forceRefresh = false): Promise<{
@@ -385,7 +385,7 @@ export class SqlProcessor {
         if (config.ignoreStatus && config.ignoreUuid && cls.id === config.ignoreUuid) {
           return; // Пропускаем игнорируемые статусы
         }
-        if (!cls.objects) cls.objects = [];
+        if (!cls.objects) {cls.objects = [];}
         cls.objects.push(obj);
       }
     });
@@ -397,23 +397,23 @@ export class SqlProcessor {
         return;
       }
 
-      if (!obj.filePath) return;
+      if (!obj.filePath) {return;}
 
       const pathParts = obj.filePath.split(/[\\/]/);
-      if (pathParts.length < 2) return;
+      if (pathParts.length < 2) {return;}
 
       const classNameFromPath = pathParts[pathParts.length - 2].toLowerCase();
       const cls = classNameMap.get(classNameFromPath);
 
       if (cls && !cls.objects?.some(o => o.id === obj.id)) {
-        if (!cls.objects) cls.objects = [];
+        if (!cls.objects) {cls.objects = [];}
         cls.objects.push(obj);
       }
     });
 
     // Удаление дубликатов
     classes.forEach(cls => {
-      if (!cls.objects) return;
+      if (!cls.objects) {return;}
 
       const uniqueObjects = [];
       const seenIds = new Set();
@@ -438,12 +438,12 @@ export class SqlProcessor {
       //console.warn(`Linking ${unlinkedObjects.length} unlinked objects to Statuses class`);
 
       if(!statusClass.objects){
-        statusClass.objects = []
+        statusClass.objects = [];
       }
 
       for(const obj of unlinkedObjects){
         if(!statusClass.objects.some(o => o.id === obj.id)){
-          statusClass.objects.push(obj)
+          statusClass.objects.push(obj);
         }
       }
 
