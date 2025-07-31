@@ -78,7 +78,7 @@ export class SqlProcessor {
       return this.cache.data;
     }
 
-    const { classes, properties, objects } = await this.parseFiles(currentFileHashes);
+    const { classes, properties, objects } = await this.parseFiles(currentFileHashes, forceRefresh);
 
     this.cache = {
       data: { classes, properties, objects },
@@ -210,7 +210,7 @@ export class SqlProcessor {
     return str.replace(/['"]/g, '');
   }
 
-  private async parseFiles(fileHashes: Map<string, string>): Promise<{
+  private async parseFiles(fileHashes: Map<string, string>, forceRefresh: boolean = false): Promise<{
     classes: ClassInfo[];
     properties: PropertyInfo[];
     objects: ObjectInfo[];
@@ -226,7 +226,7 @@ export class SqlProcessor {
 
     for (const [filePath, fileHash] of fileHashes) {
       try {
-        const { classes, properties, links, objects } = await this.parseFile(filePath, fileHash);
+        const { classes, properties, links, objects } = await this.parseFile(filePath, fileHash, forceRefresh);
 
         classes.forEach(cls => {
           if (!classMap.has(cls.id)) {
@@ -265,10 +265,10 @@ export class SqlProcessor {
     };
   }
 
-  private async parseFile(filePath: string, fileHash: string): Promise<ParsedFile> {
+  private async parseFile(filePath: string, fileHash: string, forceRefresh: boolean = false): Promise<ParsedFile> {
     const cached = this.fileCache.get(filePath);
-    if (cached && cached.hash === fileHash) {
-      console.log('File parsed from cache', fileHash);
+    if (!forceRefresh && cached && cached.hash === fileHash) {
+      //console.log('File parsed from cache', fileHash);
       return cached.parsed;
     }
 
@@ -314,7 +314,7 @@ export class SqlProcessor {
 
     const parsed = { classes, properties, links, objects };
     this.fileCache.set(filePath, { hash: fileHash, parsed });
-    console.warn('File parsed', filePath);
+    //console.warn('File parsed', filePath);
     return parsed;
   }
 
