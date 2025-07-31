@@ -74,6 +74,16 @@
         "command": "uuid-navigator.showValidatorLogs",
         "title": "Show Validator Logs",
         "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.manageClassAliases",
+        "title": "Manage class aliases",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.clearAllAliases",
+        "title": "Clear all aliases",
+        "category": "UUID Navigator"
       }
     ],
     "languages": [
@@ -169,6 +179,17 @@
           "type": "boolean",
           "default": true,
           "description": "Pointer cursor on uuid hover"
+        },
+        "uuidNavigator.ignoreStatus": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ignore status class to prevent linking objects to it"
+        },
+        "uuidNavigator.ignoreUuid": {
+          "type": "string",
+          "default": "b2d437bc-af8e-4d75-ac25-70f481251233",
+          "description": "Status class uuid to ignore",
+          "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
         }
       }
     },
@@ -202,6 +223,13 @@
           "command": "uuid-navigator.refreshExplorer",
           "when": "view == uuidExplorer",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "uuid-navigator.manageClassAliases",
+          "when": "view == uuidExplorer && viewItem == class",
+          "group": "uuid-navigation"
         }
       ]
     },

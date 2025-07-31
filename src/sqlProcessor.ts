@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
+import { AliasService } from './aliasService';
+import { getConfig } from './settings';
 
 const CLASS_TABLE = 'classes';
 const PROPERTY_TABLE = 'property_definitions';
@@ -62,6 +64,8 @@ export class SqlProcessor {
     hash: string;
     parsed: ParsedFile;
   }>();
+
+  constructor(private aliasService: AliasService) { }
 
   public async parseAllSqlFiles(forceRefresh = false): Promise<{
     classes: ClassInfo[];
@@ -347,11 +351,27 @@ export class SqlProcessor {
   private linkClassesAndObjects(classes: ClassInfo[], objects: ObjectInfo[]) {
     const classMap = new Map(classes.map(c => [c.id, c]));
     const classNameMap = new Map(classes.map(c => [c.name.toLowerCase(), c]));
+    const config = getConfig();
+    // Заполняем мапу имен классов
+    classes.forEach(cls => {
+      // Добавляем основное имя класса
+      classNameMap.set(cls.name.toLowerCase(), cls);
+
+      // Добавляем алиас, если он есть
+      if (this.aliasService) {
+        const alias = this.aliasService.getAlias(cls.id);
+        if (alias) {
+          classNameMap.set(alias.toString().toLowerCase(), cls);
+        }
+      }
+    });
 
     // Сначала свяжем объекты с их непосредственными классами (по class_id)
     objects.forEach(obj => {
       const cls = classMap.get(obj.classId);
       if (cls) {
+        if(config.ignoreStatus && config.ignoreUuid && cls.id === config.ignoreUuid)
+          return;
         if (!cls.objects) { cls.objects = []; }
         if (!cls.objects.some(o => o.id === obj.id)) {
           cls.objects.push(obj);
@@ -379,7 +399,7 @@ export class SqlProcessor {
       }
     });
 
-    // Дополнительно: свяжем статусы по имени файла
+    //Дополнительно: свяжем статусы по имени файла
     const statusFiles = new Set<string>();
     objects.forEach(obj => {
       if (!obj.filePath) { return; }
@@ -412,6 +432,7 @@ export class SqlProcessor {
       for (const obj of cls.objects) {
         if (!seenIds.has(obj.id)) {
           seenIds.add(obj.id);
+          //console.log('Duplicate, removing', cls, obj);
           uniqueObjects.push(obj);
         }
       }

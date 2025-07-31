@@ -95,7 +95,7 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
   }
 }
 
-class ExplorerItem extends vscode.TreeItem {
+export class ExplorerItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly uuid: string,

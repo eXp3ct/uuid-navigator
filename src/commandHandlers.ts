@@ -1,21 +1,23 @@
 import * as vscode from 'vscode';
 import debounce from 'lodash.debounce';
 import { highlightAllUuids } from './highlightingService';
-import { SqlProcessor } from './sqlProcessor';
+import { ClassInfo, ObjectInfo, PropertyInfo, SqlProcessor } from './sqlProcessor';
 import { SqlValidator } from './sqlValidator';
-import { ExplorerProvider } from './explorerProvider';
+import { ExplorerItem, ExplorerProvider } from './explorerProvider';
 import { getConfig } from './settings';
 import { BlameProvider } from './blameProvider';
+import { AliasService } from './aliasService';
 
 type CommandDependencies = {
   sqlProcessor: SqlProcessor;
   sqlValidator: SqlValidator;
   explorerProvider: ExplorerProvider;
-  classes: any[];
-  properties: any[];
-  objects: any[];
+  classes: ClassInfo[];
+  properties: PropertyInfo[];
+  objects: ObjectInfo[];
   treeView: vscode.TreeView<any>;
   blameProvider: BlameProvider;
+  aliasService: AliasService;
 };
 
 const COMMANDS = {
@@ -27,14 +29,26 @@ const COMMANDS = {
   SHOW_VALIDATION_LOGS: 'uuid-navigator.showValidatorLogs',
   INSERT_UUID: 'uuid-navigator.insertUuid',
   EXPLORER_FOCUS: 'uuid-navigator.focusTreeView',
-  REFRESH_BLAME_CACHE: 'uuid-navigator.refreshBlameCache'
+  REFRESH_BLAME_CACHE: 'uuid-navigator.refreshBlameCache',
+  MANAGE_CLASS_ALIASES: 'uuid-navigator.manageClassAliases',
+  CLEAR_ALL_ALIASES: 'uuid-navigator.clearAllAliases'
 };
 
 export function registerCommands(
   context: vscode.ExtensionContext,
   deps: CommandDependencies
 ) {
-  const { sqlProcessor, sqlValidator, explorerProvider, classes, properties, objects, treeView, blameProvider } = deps;
+  const {
+    sqlProcessor,
+    sqlValidator,
+    explorerProvider,
+    classes,
+    properties,
+    objects,
+    treeView,
+    blameProvider,
+    aliasService
+  } = deps;
 
   // Регистрация команд
   const commands = [
@@ -44,6 +58,16 @@ export function registerCommands(
     vscode.workspace.onDidChangeTextDocument(() => highlightAllUuids()),
     treeView,
 
+    vscode.commands.registerCommand(COMMANDS.MANAGE_CLASS_ALIASES, (item: ExplorerItem) =>
+      handleManageClassAliases(item, aliasService, classes, async () => {
+        await vscode.commands.executeCommand(COMMANDS.REFRESH_BLAME_CACHE)
+        await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER)
+      })
+    ),
+
+    vscode.commands.registerCommand(COMMANDS.CLEAR_ALL_ALIASES, async () => {
+      await aliasService.clearAllAliases();
+    }),
     //Информация
     vscode.commands.registerCommand(COMMANDS.REFRESH_BLAME_CACHE, () =>
       handleRefreshBlameCache(sqlProcessor, blameProvider)),
@@ -131,6 +155,38 @@ export function setupFileWatchers(
 }
 
 
+async function handleManageClassAliases(
+  item: ExplorerItem,
+  aliasService: AliasService,
+  classes: ClassInfo[],
+  callback: (...args: any) => Thenable<void>
+) {
+  const cls = classes.find(c => c.id === item.uuid);
+  if (!cls) {
+    vscode.window.showErrorMessage('Класс не найден');
+    return;
+  }
+
+  const currentAlias = aliasService.getAlias(item.uuid) || '';
+  const newAlias = await vscode.window.showInputBox({
+    prompt: `Установите алиас для класса "${cls.name}"`,
+    placeHolder: 'Введите один алиас',
+    value: currentAlias,
+    validateInput: (value) => {
+      if (value.includes(',')) {
+        return 'Алиас не должен содержать запятых';
+      }
+      return null;
+    }
+  });
+
+  if (newAlias !== undefined) { // undefined - пользователь отменил ввод
+    await aliasService.setAlias(item.uuid, newAlias);
+    await callback();
+    const action = newAlias.trim() ? 'обновлен' : 'удален';
+    vscode.window.showInformationMessage(`Алиас для класса "${cls.name}" ${action}`);
+  }
+}
 
 async function handleGoToDefinition(uuid: string, classes: any[], properties: any[], objects: any[]) {
   const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid);
