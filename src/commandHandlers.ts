@@ -31,7 +31,8 @@ const COMMANDS = {
   EXPLORER_FOCUS: 'uuid-navigator.focusTreeView',
   REFRESH_BLAME_CACHE: 'uuid-navigator.refreshBlameCache',
   MANAGE_CLASS_ALIASES: 'uuid-navigator.manageClassAliases',
-  CLEAR_ALL_ALIASES: 'uuid-navigator.clearAllAliases'
+  CLEAR_ALL_ALIASES: 'uuid-navigator.clearAllAliases',
+  GOTO_DEFINITION_FROM_TREEVIEW: 'uuid-navigator.goToDefinitionFromTreeView'
 };
 
 export function registerCommands(
@@ -58,13 +59,6 @@ export function registerCommands(
     vscode.workspace.onDidChangeTextDocument(() => highlightAllUuids()),
     treeView,
 
-    vscode.commands.registerCommand(COMMANDS.MANAGE_CLASS_ALIASES, (item: ExplorerItem) =>
-      handleManageClassAliases(item, aliasService, classes, async () => {
-        await vscode.commands.executeCommand(COMMANDS.REFRESH_BLAME_CACHE)
-        await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER)
-      })
-    ),
-
     vscode.commands.registerCommand(COMMANDS.CLEAR_ALL_ALIASES, async () => {
       await aliasService.clearAllAliases();
     }),
@@ -85,6 +79,16 @@ export function registerCommands(
 
     vscode.commands.registerCommand(COMMANDS.SHOW_EXPLORER, () =>
       handleShowExplorer()),
+
+    vscode.commands.registerCommand(COMMANDS.MANAGE_CLASS_ALIASES, (item: ExplorerItem) =>
+      handleManageClassAliases(item, aliasService, classes, async () => {
+        await vscode.commands.executeCommand(COMMANDS.REFRESH_BLAME_CACHE)
+        await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER)
+      })
+    ),
+
+    vscode.commands.registerCommand(COMMANDS.GOTO_DEFINITION_FROM_TREEVIEW, (item: ExplorerItem) => 
+      handleGoToDefinition(item.uuid, classes, properties, objects)),
 
     // Валидация
     vscode.commands.registerCommand(COMMANDS.VALIDATE_CURRENT_FILE, () =>
@@ -188,7 +192,7 @@ async function handleManageClassAliases(
   }
 }
 
-async function handleGoToDefinition(uuid: string, classes: any[], properties: any[], objects: any[]) {
+async function handleGoToDefinition(uuid: string, classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
   const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid);
   if (!target?.filePath) {
     vscode.window.showErrorMessage(`Definition for UUID ${uuid} not found`);

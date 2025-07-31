@@ -57,11 +57,16 @@
       },
       {
         "command": "uuid-navigator.focusTreeView",
-        "title": "UUID Navigator: Focus Tree View",
+        "title": "Focus Tree View",
         "category": "UUID Navigator"
       },
       {
         "command": "uuid-navigator.goToDefinition",
+        "title": "Go to UUID Definition",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.goToDefinitionFromTreeView",
         "title": "Go to UUID Definition",
         "category": "UUID Navigator"
       },
@@ -229,6 +234,11 @@
         {
           "command": "uuid-navigator.manageClassAliases",
           "when": "view == uuidExplorer && viewItem == class",
+          "group": "uuid-navigation"
+        },
+        {
+          "command": "uuid-navigator.goToDefinitionFromTreeView",
+          "when": "view == uuidExplorer && viewItem =~ /^(class|property|object)$/",
           "group": "uuid-navigation"
         }
       ]
