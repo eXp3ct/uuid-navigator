@@ -6,6 +6,9 @@ interface ClassAliasMap {
 }
 
 export class AliasService {
+  private _onAliasesChanged = new vscode.EventEmitter<void>();
+  readonly onAliasesChanged = this._onAliasesChanged.event;
+
   private static storageKey = 'uuid-navigator.classAliases';
   private aliases: ClassAliasMap = {};
 
@@ -19,7 +22,10 @@ export class AliasService {
   }
 
   private saveAliases(): Thenable<void> {
-    return this.context.globalState.update(AliasService.storageKey, this.aliases);
+    const result = this.context.globalState.update(AliasService.storageKey, this.aliases);
+    this._onAliasesChanged.fire();
+
+    return result;
   }
 
   async clearAllAliases(): Promise<void> {

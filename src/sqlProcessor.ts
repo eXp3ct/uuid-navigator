@@ -65,7 +65,11 @@ export class SqlProcessor {
     parsed: ParsedFile;
   }>();
 
-  constructor(private aliasService: AliasService) { }
+  constructor(private aliasService: AliasService) {
+    this.aliasService.onAliasesChanged(() => {
+      this.invalidateCache();
+    })
+  }
 
   public async parseAllSqlFiles(forceRefresh = false): Promise<{
     classes: ClassInfo[];
@@ -78,7 +82,7 @@ export class SqlProcessor {
       return this.cache.data;
     }
 
-    const { classes, properties, objects } = await this.parseFiles(currentFileHashes, forceRefresh);
+    const { classes, properties, objects } = await this.parseFiles(currentFileHashes);
 
     this.cache = {
       data: { classes, properties, objects },
@@ -210,7 +214,7 @@ export class SqlProcessor {
     return str.replace(/['"]/g, '');
   }
 
-  private async parseFiles(fileHashes: Map<string, string>, forceRefresh: boolean = false): Promise<{
+  private async parseFiles(fileHashes: Map<string, string>): Promise<{
     classes: ClassInfo[];
     properties: PropertyInfo[];
     objects: ObjectInfo[];
@@ -226,7 +230,7 @@ export class SqlProcessor {
 
     for (const [filePath, fileHash] of fileHashes) {
       try {
-        const { classes, properties, links, objects } = await this.parseFile(filePath, fileHash, forceRefresh);
+        const { classes, properties, links, objects } = await this.parseFile(filePath, fileHash);
 
         classes.forEach(cls => {
           if (!classMap.has(cls.id)) {
@@ -265,9 +269,9 @@ export class SqlProcessor {
     };
   }
 
-  private async parseFile(filePath: string, fileHash: string, forceRefresh: boolean = false): Promise<ParsedFile> {
+  private async parseFile(filePath: string, fileHash: string): Promise<ParsedFile> {
     const cached = this.fileCache.get(filePath);
-    if (!forceRefresh && cached && cached.hash === fileHash) {
+    if (cached && cached.hash === fileHash) {
       //console.log('File parsed from cache', fileHash);
       return cached.parsed;
     }
@@ -352,9 +356,15 @@ export class SqlProcessor {
     const classMap = new Map(classes.map(c => [c.id, c]));
     const classNameMap = new Map(classes.map(c => [c.name.toLowerCase(), c]));
     const config = getConfig();
-    // Заполняем мапу имен классов
+
+    // Очищаем все существующие связи
     classes.forEach(cls => {
-      // Добавляем основное имя класса
+      cls.objects = [];
+    });
+
+    // Заполняем мапу имен классов и алиасов
+    classes.forEach(cls => {
+      // Основное имя класса
       classNameMap.set(cls.name.toLowerCase(), cls);
 
       // Добавляем алиас, если он есть
@@ -366,65 +376,44 @@ export class SqlProcessor {
       }
     });
 
-    // Сначала свяжем объекты с их непосредственными классами (по class_id)
+    // Связываем объекты с классами в несколько проходов
+
+    // 1. Привязка по явному class_id (кроме игнорируемых статусов)
     objects.forEach(obj => {
       const cls = classMap.get(obj.classId);
       if (cls) {
-        if(config.ignoreStatus && config.ignoreUuid && cls.id === config.ignoreUuid)
-          return;
-        if (!cls.objects) { cls.objects = []; }
-        if (!cls.objects.some(o => o.id === obj.id)) {
-          cls.objects.push(obj);
+        if (config.ignoreStatus && config.ignoreUuid && cls.id === config.ignoreUuid) {
+          return; // Пропускаем игнорируемые статусы
         }
+        if (!cls.objects) cls.objects = [];
+        cls.objects.push(obj);
       }
     });
 
-    // Теперь обработаем статусы и другие объекты по структуре папок
+    // 2. Привязка по имени папки/алиасу
     objects.forEach(obj => {
-      if (!obj.filePath) { return; }
+      // Пропускаем уже привязанные объекты
+      if (classMap.get(obj.classId)?.objects?.some(o => o.id === obj.id)) {
+        return;
+      }
 
-      // Извлекаем имя класса из пути к файлу
-      // Формат: <Имя класса>/<номер>. Конфигурация объектов <Имя класса>.sql
+      if (!obj.filePath) return;
+
       const pathParts = obj.filePath.split(/[\\/]/);
-      if (pathParts.length < 2) { return; }
+      if (pathParts.length < 2) return;
 
-      const classNameFromPath = pathParts[pathParts.length - 2]; // Имя папки - имя класса
-      const cls = classNameMap.get(classNameFromPath.toLowerCase());
+      const classNameFromPath = pathParts[pathParts.length - 2].toLowerCase();
+      const cls = classNameMap.get(classNameFromPath);
 
-      if (cls && cls.objects) {
-        // Проверяем, что объект еще не добавлен
-        if (!cls.objects.some(o => o.id === obj.id)) {
-          cls.objects.push(obj);
-        }
+      if (cls && !cls.objects?.some(o => o.id === obj.id)) {
+        if (!cls.objects) cls.objects = [];
+        cls.objects.push(obj);
       }
     });
 
-    //Дополнительно: свяжем статусы по имени файла
-    const statusFiles = new Set<string>();
-    objects.forEach(obj => {
-      if (!obj.filePath) { return; }
-
-      // Если файл называется "*Конфигурация объектов*" - это статусы
-      if (obj.filePath.includes('Конфигурация объектов')) {
-        const pathParts = obj.filePath.split(/[\\/]/);
-        if (pathParts.length < 2) { return; }
-
-        const classNameFromPath = pathParts[pathParts.length - 2];
-        const cls = classNameMap.get(classNameFromPath.toLowerCase());
-
-        if (cls) {
-          if (!cls.objects) { cls.objects = []; }
-          if (!cls.objects.some(o => o.id === obj.id)) {
-            cls.objects.push(obj);
-            statusFiles.add(obj.filePath);
-          }
-        }
-      }
-    });
-
-    // Удалим дубликаты - объекты, которые уже были связаны по class_id
+    // Удаление дубликатов
     classes.forEach(cls => {
-      if (!cls.objects) { return; }
+      if (!cls.objects) return;
 
       const uniqueObjects = [];
       const seenIds = new Set();
@@ -432,13 +421,34 @@ export class SqlProcessor {
       for (const obj of cls.objects) {
         if (!seenIds.has(obj.id)) {
           seenIds.add(obj.id);
-          //console.log('Duplicate, removing', cls, obj);
           uniqueObjects.push(obj);
         }
       }
 
       cls.objects = uniqueObjects;
     });
+
+    // Логирование непривязанных объектов (для отладки)
+    const unlinkedObjects = objects.filter(obj =>
+      !classes.some(cls => cls.objects?.some(o => o.id === obj.id))
+    );
+    const statusClass = classes.find(c => config.ignoreUuid === c.id);
+
+    if (unlinkedObjects.length > 0 && statusClass) {
+      //console.warn(`Linking ${unlinkedObjects.length} unlinked objects to Statuses class`);
+
+      if(!statusClass.objects){
+        statusClass.objects = []
+      }
+
+      for(const obj of unlinkedObjects){
+        if(!statusClass.objects.some(o => o.id === obj.id)){
+          statusClass.objects.push(obj)
+        }
+      }
+
+      //console.warn('Unlinked objects:', unlinkedObjects);
+    }
   }
 
   private parseClass(
