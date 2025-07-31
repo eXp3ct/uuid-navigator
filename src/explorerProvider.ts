@@ -27,7 +27,10 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
           cls.description,
           vscode.TreeItemCollapsibleState.Collapsed,
           'class',
-          cls
+          cls,
+          cls.filePath,
+          cls.lineNumber,
+          cls.position
         ))
       );
     }
@@ -44,7 +47,10 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
           'Свойства класса ' + cls.name,
           vscode.TreeItemCollapsibleState.Collapsed,
           'properties-folder',
-          cls
+          cls,
+          cls.filePath,
+          cls.lineNumber,
+          cls.position
         ));
       }
 
@@ -56,7 +62,10 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
           'Объекты класса ' + cls.name,
           vscode.TreeItemCollapsibleState.Collapsed,
           'objects-folder',
-          cls
+          cls,
+          cls.filePath,
+          cls.lineNumber,
+          cls.position
         ));
       }
 
@@ -72,7 +81,10 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
           prop.description,
           vscode.TreeItemCollapsibleState.None,
           'property',
-          prop
+          prop,
+          prop.filePath,
+          prop.lineNumber,
+          prop.position
         ))
       );
     }
@@ -86,7 +98,10 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
           obj.description,
           vscode.TreeItemCollapsibleState.None,
           'object',
-          obj
+          obj,
+          obj.filePath,
+          obj.lineNumber,
+          obj.position
         ))
       );
     }
@@ -95,14 +110,18 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
   }
 }
 
-class ExplorerItem extends vscode.TreeItem {
+export class ExplorerItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly uuid: string,
     description: string,
     collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly contextValue: 'class' | 'property' | 'object' | 'properties-folder' | 'objects-folder',
-    public readonly data: ClassInfo | PropertyInfo | ObjectInfo
+    public readonly data: ClassInfo | PropertyInfo | ObjectInfo,
+    public readonly filePath?: string,
+    public readonly lineNumber?: number,
+    public readonly position?: number,
+
   ) {
     super(label, collapsibleState);
     this.tooltip = `${description}\nUUID: ${uuid}`;
