@@ -41,7 +41,7 @@ export function highlightAllUuids(editor = vscode.window.activeTextEditor) {
 
 function findUuidDecorations(document: vscode.TextDocument) {
   const text = document.getText();
-  const uuidRegex = /["']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}["']?/gi;
+  const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
   const decorations: vscode.DecorationOptions[] = [];
 
   let match;

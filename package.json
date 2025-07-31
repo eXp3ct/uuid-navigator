@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -57,11 +57,16 @@
       },
       {
         "command": "uuid-navigator.focusTreeView",
-        "title": "UUID Navigator: Focus Tree View",
+        "title": "Focus Tree View",
         "category": "UUID Navigator"
       },
       {
         "command": "uuid-navigator.goToDefinition",
+        "title": "Go to UUID Definition",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.goToDefinitionFromTreeView",
         "title": "Go to UUID Definition",
         "category": "UUID Navigator"
       },
@@ -73,6 +78,16 @@
       {
         "command": "uuid-navigator.showValidatorLogs",
         "title": "Show Validator Logs",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.manageClassAliases",
+        "title": "Manage class aliases",
+        "category": "UUID Navigator"
+      },
+      {
+        "command": "uuid-navigator.clearAllAliases",
+        "title": "Clear all aliases",
         "category": "UUID Navigator"
       }
     ],
@@ -169,6 +184,17 @@
           "type": "boolean",
           "default": true,
           "description": "Pointer cursor on uuid hover"
+        },
+        "uuidNavigator.ignoreStatus": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ignore status class to prevent linking objects to it"
+        },
+        "uuidNavigator.ignoreUuid": {
+          "type": "string",
+          "default": "b2d437bc-af8e-4d75-ac25-70f481251233",
+          "description": "Status class uuid to ignore",
+          "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
         }
       }
     },
@@ -202,6 +228,18 @@
           "command": "uuid-navigator.refreshExplorer",
           "when": "view == uuidExplorer",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "uuid-navigator.manageClassAliases",
+          "when": "view == uuidExplorer && viewItem == class",
+          "group": "uuid-navigation"
+        },
+        {
+          "command": "uuid-navigator.goToDefinitionFromTreeView",
+          "when": "view == uuidExplorer && viewItem =~ /^(class|property|object)$/",
+          "group": "uuid-navigation"
         }
       ]
     },

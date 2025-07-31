@@ -6,6 +6,7 @@ import { SqlProcessor } from './sqlProcessor';
 import { ExplorerProvider } from './explorerProvider';
 import { SqlValidator } from './sqlValidator';
 import { registerCommands, setupFileWatchers } from './commandHandlers';
+import { AliasService } from './aliasService';
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('UUID Navigator activated');
@@ -15,7 +16,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	registerNavigationCommands(context);
 
 	// Инициализация классов
-	const sqlProcessor = new SqlProcessor();
+	const aliasService = new AliasService(context);
+	const sqlProcessor = new SqlProcessor(aliasService);
 	const sqlValidator = new SqlValidator();
 	const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
 
@@ -35,7 +37,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		properties,
 		objects,
 		treeView,
-		blameProvider
+		blameProvider,
+		aliasService
 	});
 
 	setupFileWatchers(context, sqlProcessor, sqlValidator, explorerProvider, blameProvider);

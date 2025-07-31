@@ -39,17 +39,19 @@ export class BlameProvider {
     this.hoverProvider?.dispose();
     this.hoverProvider = undefined;
     const config = getConfig();
-
+    
     if (config.showBlameOnHover) {
       this.hoverProvider = vscode.languages.registerHoverProvider(
         ['sql', 'mssql'],
         {
           provideHover: async (document, position) => {
             const range = getUuidRange(document, position);
+            
             if (!range) {return null;}
 
             const uuid = document.getText(range).replace(/["']/g, '');
             const info = this.uuidFinder.getInfo(uuid);
+            
             if (!info) {return null;}
 
             return new vscode.Hover(this.createBlameMessage(info));

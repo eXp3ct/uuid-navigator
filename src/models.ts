@@ -11,6 +11,8 @@ export interface ExtensionConfig {
   validateJson: boolean;
   cursorPointer: boolean;
   blameTemplate?: string[];
+  ignoreStatus: boolean;
+  ignoreUuid: string;
 }
 
 export interface ExtensionContext extends vscode.ExtensionContext {
