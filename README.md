@@ -63,12 +63,14 @@
 | `underline`         | `true` | Подчеркивание UUID |
 | `showNotifications` | `false` | Показывать уведомления при поиске |
 | `showBlameOnHover`  | `true` | Показывать информацию при наведении |
-| `blameTemplate`     | `['type', 'className', 'classUuid', 'uuid', 'propertyName', 'description', 'dataType', 'goToButton']` | Шаблон отображения информации |
+| `blameTemplate`     | `['type', 'className', 'classUuid', 'classType','uuid', 'propertyName', 'description', 'dataType', 'goToButton']` | Шаблон отображения информации |
 | `cursorPointer` | `true` | Курсор-указатель при наведеннии на uuid |
 | `enableValidation` | `true` | Проверка синтаксиса |
 | `validateJson` | `true` | Проверка синтаксиса json |
 | `ignoreStatus` | `true` | Игнорирование класса `Статусы` при привязке объектов |
 | `ignoreUuid` | `b2d437bc-af8e-4d75-ac25-70f481251233` | UUID класса `Статусы` |
+| `autoLinking` | `true` | Автоматическая привязка специальных свойств ко всем справочным классам |
+| `autoLinking` | `{name: string, uuid: string: classId: string \| null}` | Перечень свойств для автоматической привязки |
 
 **Пример настроек**
 ```json
