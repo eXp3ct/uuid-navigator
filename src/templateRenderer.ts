@@ -1,4 +1,4 @@
-import { DataType, UuidInfo } from './models';
+import { ClassType, DataType, UuidInfo } from './models';
 
 export class BlameTemplateRenderer {
   static render(template: string[], info: UuidInfo): string {
@@ -15,6 +15,7 @@ export class BlameTemplateRenderer {
       case 'goToButton': return `[Go to Definition](command:uuid-navigator.goToDefinition?${encodeURIComponent(JSON.stringify(info.uuid))})\n\n`;
       case 'classUuid': return info.classUuid ? `**Class UUID:** \`${info.classUuid}\`\n\n` : '';
       case 'dataType': return info.dataType !== undefined ? `**Data type:** \`${DataType[info.dataType]}\`\n\n` : '';
+      case 'classType': return info.classType !== undefined ? `**Class type:** \`${ClassType[info.classType]}\`\n\n` : '';
       default: return '';
     }
   }

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { AliasService } from './aliasService';
 import { getConfig } from './settings';
+import { ClassType } from './models';
 
 const CLASS_TABLE = 'classes';
 const PROPERTY_TABLE = 'property_definitions';
@@ -12,6 +13,7 @@ export interface ClassInfo {
   id: string;
   name: string;
   description: string;
+  classType: number;
   properties: PropertyInfo[];
   objects: ObjectInfo[];
   filePath?: string;
@@ -259,11 +261,29 @@ export class SqlProcessor {
       }
     }
 
+    // Сортируем свойства перед привязкой
+    allProperties.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Привязываем отсортированные данные
     this.linkClassesAndProperties(allClasses, allProperties, allLinks);
     this.linkClassesAndObjects(allClasses, allObjects);
 
+    // Сортируем классы и их внутренние элементы
+    const sortedClasses = allClasses
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(cls => ({
+        ...cls,
+        properties: cls.properties
+          ? cls.properties.slice().sort((a, b) => a.name.localeCompare(b.name))
+          : [],
+        objects: cls.objects
+          ? cls.objects.slice().sort((a, b) => a.name.localeCompare(b.name))
+          : []
+      }));
+
     return {
-      classes: allClasses.slice().sort((a, b) => a.name.localeCompare(b.name)),
+      classes: sortedClasses,
       properties: allProperties.slice().sort((a, b) => a.name.localeCompare(b.name)),
       objects: allObjects.slice().sort((a, b) => a.name.localeCompare(b.name))
     };
@@ -385,7 +405,7 @@ export class SqlProcessor {
         if (config.ignoreStatus && config.ignoreUuid && cls.id === config.ignoreUuid) {
           return; // Пропускаем игнорируемые статусы
         }
-        if (!cls.objects) {cls.objects = [];}
+        if (!cls.objects) { cls.objects = []; }
         cls.objects.push(obj);
       }
     });
@@ -397,23 +417,23 @@ export class SqlProcessor {
         return;
       }
 
-      if (!obj.filePath) {return;}
+      if (!obj.filePath) { return; }
 
       const pathParts = obj.filePath.split(/[\\/]/);
-      if (pathParts.length < 2) {return;}
+      if (pathParts.length < 2) { return; }
 
       const classNameFromPath = pathParts[pathParts.length - 2].toLowerCase();
       const cls = classNameMap.get(classNameFromPath);
 
       if (cls && !cls.objects?.some(o => o.id === obj.id)) {
-        if (!cls.objects) {cls.objects = [];}
+        if (!cls.objects) { cls.objects = []; }
         cls.objects.push(obj);
       }
     });
 
     // Удаление дубликатов
     classes.forEach(cls => {
-      if (!cls.objects) {return;}
+      if (!cls.objects) { return; }
 
       const uniqueObjects = [];
       const seenIds = new Set();
@@ -437,12 +457,12 @@ export class SqlProcessor {
     if (unlinkedObjects.length > 0 && statusClass) {
       //console.warn(`Linking ${unlinkedObjects.length} unlinked objects to Statuses class`);
 
-      if(!statusClass.objects){
+      if (!statusClass.objects) {
         statusClass.objects = [];
       }
 
-      for(const obj of unlinkedObjects){
-        if(!statusClass.objects.some(o => o.id === obj.id)){
+      for (const obj of unlinkedObjects) {
+        if (!statusClass.objects.some(o => o.id === obj.id)) {
           statusClass.objects.push(obj);
         }
       }
@@ -463,13 +483,14 @@ export class SqlProcessor {
     const id = this.getValue(columns, row, 'id');
     const name = this.getValue(columns, row, 'name');
     const description = this.getValue(columns, row, 'description');
-
+    const type = parseInt(this.getValue(columns, row, 'type') || '0');
     if (!id || !name) { return null; }
 
     return {
       id,
       name: this.stripQuotes(name),
       description: this.stripQuotes(description || '') || '',
+      classType: type,
       properties: [],
       objects: [],
       filePath,
@@ -533,7 +554,9 @@ export class SqlProcessor {
   ) {
     const propertyMap = new Map(properties.map(p => [p.id, p]));
     const classMap = new Map(classes.map(c => [c.id, c]));
+    const config = getConfig();
 
+    // 1. Обрабатываем стандартные привязки из links
     links.forEach(link => {
       const cls = classMap.get(link.classId);
       const prop = propertyMap.get(link.propertyId);
@@ -542,11 +565,26 @@ export class SqlProcessor {
         if (!cls.properties.some(p => p.id === prop.id)) {
           cls.properties.push(prop);
         }
-      } else {
-        if (!cls) { console.warn(`Class not found for link: ${link.classId}`); }
-        if (!prop) { console.warn(`Property not found for link: ${link.propertyId}`); }
       }
     });
+
+    // 2. Автоматическая привязка свойств из конфига
+    if (config.autoLinkedProperties && config.autoLinkedProperties.length > 0) {
+      const autoProperties = properties.filter(p =>
+        config.autoLinkedProperties.some(autoProp =>
+          autoProp.uuid === p.id
+        )
+      );
+
+      autoProperties.forEach(property => {
+        classes.forEach(cls => {
+          // Проверяем что свойство еще не привязано
+          if (!cls.properties.some(p => p.id === property.id) && cls.classType === ClassType.Обрабатываемый) {
+            cls.properties.push(property);
+          }
+        });
+      });
+    }
   }
 
   private getValue(columns: string[], values: string[], column: string): string | null {

@@ -15,7 +15,20 @@ export function getConfig(): ExtensionConfig {
     validateJson: config.get<boolean>('validateJson', true),
     cursorPointer: config.get<boolean>('cursorPointer', true),
     ignoreStatus: config.get<boolean>('ignoreStatus', true),
-    ignoreUuid: config.get<string>('ignoreUuid', 'b2d437bc-af8e-4d75-ac25-70f481251233')
+    ignoreUuid: config.get<string>('ignoreUuid', 'b2d437bc-af8e-4d75-ac25-70f481251233'),
+    autoLinking: config.get<boolean>('autoLinking', true),
+    autoLinkedProperties: config.get<{name: string; uuid: string; classId: string | null;}[]>('autoLinkedProperties', [
+      {
+        name: 'Статус',
+        uuid: '576a5608-b985-4b67-ac22-eb2e9d8082bd',
+        classId: "b2d437bc-af8e-4d75-ac25-70f481251233"
+      },
+      {
+        name: 'Номер',
+        uuid: 'dd2e45a7-e44d-4da0-9f1d-34010e448d92',
+        classId: null
+      }
+    ])
   };
 
   if (baseConfig.showBlameOnHover) {
@@ -25,6 +38,7 @@ export function getConfig(): ExtensionConfig {
         'type',
         'className',
         'classUuid',
+        'classType',
         'uuid',
         'propertyName',
         'description',
