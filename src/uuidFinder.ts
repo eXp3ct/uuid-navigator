@@ -1,4 +1,5 @@
 import { UuidInfo } from './models';
+import { getConfig } from './settings';
 import { ClassInfo, ObjectInfo, PropertyInfo } from './sqlProcessor';
 
 export class UuidFinder {
@@ -54,6 +55,7 @@ export class UuidFinder {
 
   getInfo(uuid: string): UuidInfo | undefined {
     const cached = this.cache.find(info => info.uuid === uuid);
+    const config = getConfig();
     if (!cached) { return undefined; }
 
     const result: UuidInfo = {
@@ -64,7 +66,8 @@ export class UuidFinder {
 
     if (cached.type === 'property') {
       const property = this.properties.find(p => p.id === uuid);
-      if (property) {
+      const autoLinkedProperties = config.autoLinkedProperties;
+      if (property && !autoLinkedProperties.some(prop => prop.uuid === property.id)) {
         result.propertyName = property.name;
         result.description = property.description;
         result.dataType = property.dataType;
@@ -77,7 +80,17 @@ export class UuidFinder {
         if (classInfo) {
           result.className = classInfo.name;
           result.classUuid = classInfo.id;
+          result.classType = classInfo.classType;
         }
+      }
+      else if (property) {
+        result.propertyName = property.name;
+        result.description = property.description;
+        result.dataType = property.dataType;
+
+        const autoLinkedProp = autoLinkedProperties.find(p => p.uuid === property.id);
+        result.className = autoLinkedProp?.name;
+        result.classUuid = autoLinkedProp?.classId || '';        
       }
     }
     else if (cached.type === 'class') {
@@ -85,6 +98,7 @@ export class UuidFinder {
       if (classInfo) {
         result.className = classInfo.name;
         result.description = classInfo.description;
+        result.classType = classInfo.classType;
       }
     }
 
@@ -102,6 +116,7 @@ export class UuidFinder {
         if (classInfo) {
           result.className = classInfo.name;
           result.classUuid = classInfo.id;
+          result.classType = classInfo.classType;
         }
       }
     }
