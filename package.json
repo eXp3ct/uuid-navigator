@@ -142,6 +142,7 @@
               "propertyName",
               "uuid",
               "classUuid",
+              "classType",
               "description",
               "dataType",
               "goToButton"
@@ -151,6 +152,7 @@
             "type",
             "className",
             "classUuid",
+            "classType",
             "uuid",
             "propertyName",
             "description",
@@ -195,6 +197,49 @@
           "default": "b2d437bc-af8e-4d75-ac25-70f481251233",
           "description": "Status class uuid to ignore",
           "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        },
+        "uuidNavigator.autoLinking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto linking specified properties"
+        },
+        "uuidNavigator.autoLinkedProperties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Property name"
+              },
+              "uuid": {
+                "type": "string",
+                "description": "Property UUID",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "classId": {
+                "type": ["string", "null"],
+                "description": "Property's class id",
+                "pattern": "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|null)$"
+              }
+            },
+            "additionalProperties": false,
+            "minProperties": 2,
+            "description": "Must have tree fields"
+          },
+          "default": [
+            {
+              "name": "Статус",
+              "uuid": "576a5608-b985-4b67-ac22-eb2e9d8082bd",
+              "classId": "b2d437bc-af8e-4d75-ac25-70f481251233"
+            },
+            {
+              "name": "Номер",
+              "uuid": "dd2e45a7-e44d-4da0-9f1d-34010e448d92",
+              "classId": null
+            }
+          ],
+          "description": "Свойства, которые автоматически привязываются ко всем классам"
         }
       }
     },

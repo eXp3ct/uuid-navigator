@@ -13,6 +13,8 @@ export interface ExtensionConfig {
   blameTemplate?: string[];
   ignoreStatus: boolean;
   ignoreUuid: string;
+  autoLinking: boolean;
+  autoLinkedProperties: {name: string; uuid: string; classId: string | null;}[];
 }
 
 export interface ExtensionContext extends vscode.ExtensionContext {
@@ -36,6 +38,7 @@ export interface UuidInfo {
   lineNumber?: number;
   position?: number;
   dataType?: DataType;
+  classType?: ClassType;
 }
 
 export enum DataType {
@@ -55,4 +58,10 @@ export enum DataType {
   MultipleSignature = 13,
   Date = 14,
   Time = 15
+}
+
+export enum ClassType {
+  Системный = 0,
+  Справочный = 1,
+  Обрабатываемый = 2
 }
