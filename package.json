@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -315,7 +315,8 @@
     "publish": "vsce publish",
     "unit-test": "jest --config jest.config.js",
     "test": "vscode-test && yarn run unit-test",
-    "test:watch": "jest --watch --config jest.config.js"
+    "test:watch": "jest --watch --config jest.config.js",
+    "test:coverage": "jest --coverage"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
@@ -339,7 +340,9 @@
   },
   "dependencies": {
     "@types/lodash.debounce": "^4.0.9",
+    "@types/marked": "^6.0.0",
     "jsonc-parser": "^3.3.1",
-    "lodash.debounce": "^4.0.8"
+    "lodash.debounce": "^4.0.8",
+    "marked": "^16.1.2"
   }
 }
