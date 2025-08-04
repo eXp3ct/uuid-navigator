@@ -213,8 +213,8 @@ export class SqlProcessor {
 
           // Обработка скобок только вне строковых литералов
           if (!inString && (char === '(' || char === ')')) {
-            if (char === '(') depth++;
-            if (char === ')') depth--;
+            if (char === '(') {depth++;}
+            if (char === ')') {depth--;}
           }
 
           // Разделитель - запятая вне строки и скобок
