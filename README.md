@@ -10,7 +10,7 @@
 
 2. **Вручную (из .vsix)**:
    ```bash
-   code --install-extension uuid-navigator-1.8.0.vsix
+   code --install-extension uuid-navigator-1.9.0.vsix
    ```
 
 ## 🚀 Возможности

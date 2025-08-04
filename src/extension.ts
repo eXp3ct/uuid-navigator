@@ -57,7 +57,7 @@ export function deactivate() { }
 
 function checkForExtensionUpdate(context: vscode.ExtensionContext) {
 	const extension = vscode.extensions.getExtension(context.extension.id);
-	if (!extension) return;
+	if (!extension) {return;}
 
 	const currentVersion = extension.packageJSON.version;
 	const previousVersion = context.globalState.get('extensionVersion');

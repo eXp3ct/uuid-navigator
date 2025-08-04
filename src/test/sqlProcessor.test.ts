@@ -17,7 +17,7 @@ jest.mock('../aliasService', () => {
     AliasService: jest.fn().mockImplementation(() => ({
       onAliasesChanged: jest.fn()
     }))
-  }
+  };
 });
 describe('SqlProcessor', () => {
   let sqlProcessor: SqlProcessor;
