@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import debounce from 'lodash.debounce';
 import { highlightAllUuids } from './highlightingService';
-import { ClassInfo, ObjectInfo, PropertyInfo, SqlProcessor } from './sqlProcessor';
 import { SqlValidator } from './sqlValidator';
 import { ExplorerItem, ExplorerProvider } from './explorerProvider';
 import { getConfig } from './settings';
 import { BlameProvider } from './blameProvider';
 import { AliasService } from './aliasService';
+import { ClassInfo, PropertyInfo, ObjectInfo } from './models';
+import { SqlProcessor } from './sqlProcessor';
 
 type CommandDependencies = {
   sqlProcessor: SqlProcessor;

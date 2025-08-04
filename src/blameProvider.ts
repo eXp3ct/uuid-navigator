@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
-import { UuidInfo } from './models';
+import { ClassInfo, ObjectInfo, PropertyInfo, UuidInfo } from './models';
 import { UuidFinder } from './uuidFinder';
 import { getConfig } from './settings';
 import { BlameTemplateRenderer } from './templateRenderer';
-import { ClassInfo, ObjectInfo, PropertyInfo, SqlProcessor } from './sqlProcessor';
 import { getUuidRange } from './utils';
 
 export class BlameProvider {

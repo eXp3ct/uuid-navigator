@@ -1,6 +1,5 @@
-import { UuidInfo } from './models';
+import { ClassInfo, ObjectInfo, PropertyInfo, UuidInfo } from './models';
 import { getConfig } from './settings';
-import { ClassInfo, ObjectInfo, PropertyInfo } from './sqlProcessor';
 
 export class UuidFinder {
   private cache: UuidInfo[] = [];
