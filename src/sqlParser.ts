@@ -4,20 +4,25 @@ import { ObjectInfo, ClassInfo, PropertyInfo, ClassPropertyLink } from "./models
 export class SqlParser {
   public normalizeSql(content: string): string {
     return content
-      .replace(/--.*$/gm, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/:my_utc_now/g, 'NULL::timestamp')
-      .replace(/:my_admin_id/g, 'NULL::uuid')
+      .replace(/--.*$/gm, '') // Удаляем однострочные комментарии
+      .replace(/\/\*[\s\S]*?\*\//g, '') // Удаляем многострочные комментарии
+      // Сначала специальные случаи
+      .replace(/:my_utc_now\b/g, 'NULL::timestamp') // \b - граница слова
+      .replace(/:my_admin_id\b/g, 'NULL::uuid') // \b - граница слова
       .replace(/gen_random_uuid\(\)/g, 'NULL::uuid')
+      // Затем общий случай для остальных параметров
       .replace(/:(\w+)/g, 'NULL');
   }
 
-  private normalizeValue(value: string): string {
+  public normalizeValue(value: string): string {
     // Если значение начинается и заканчивается кавычками - обрабатываем как строку
     if ((value.startsWith("'") && value.endsWith("'")) ||
       (value.startsWith('"') && value.endsWith('"'))) {
       // Убираем внешние кавычки
       let result = value.slice(1, -1);
+      // Заменяем экранированные кавычки
+      result = result.replace(/\\'/g, "'")
+        .replace(/\\"/g, '"');
       // Заменяем специальные значения внутри строки
       result = result
         .replace(/:my_utc_now/g, 'NULL')
@@ -103,8 +108,13 @@ export class SqlParser {
       const uuidRegex = /'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'/gi;
       let uuidMatch;
 
-      while ((uuidMatch = uuidRegex.exec(match[3])) !== null) {
-        positions.push(uuidMatch.index);
+      // Ищем UUID в оригинальном content, используя match.index
+      const valuesStartPos = match.index + match[0].indexOf('VALUES') + 6;
+      const valuesContent = content.slice(valuesStartPos);
+
+      while ((uuidMatch = uuidRegex.exec(valuesContent)) !== null) {
+        // Добавляем позицию относительно начала всего content
+        positions.push(valuesStartPos + uuidMatch.index);
       }
 
       inserts.push({ tableName, columns, values, positions });
@@ -113,7 +123,7 @@ export class SqlParser {
     return inserts;
   }
 
-  private extractValueGroups(str: string): string[] | null {
+  public extractValueGroups(str: string): string[] | null {
     const groups = [];
     let depth = 0;
     let start = -1;
@@ -154,8 +164,13 @@ export class SqlParser {
     return groups.length > 0 ? groups : null;
   }
 
-  private stripQuotes(str: string): string {
-    return str.replace(/['"]/g, '');
+  public stripQuotes(str: string): string {
+    // Удаляем только внешние кавычки, если они есть
+    if ((str.startsWith("'") && str.endsWith("'")) ||
+      (str.startsWith('"') && str.endsWith('"'))) {
+      return str.slice(1, -1);
+    }
+    return str;
   }
 
   public parseObject(
@@ -179,8 +194,8 @@ export class SqlParser {
       id,
       name: this.stripQuotes(name),
       description: this.stripQuotes(description || ''),
-      classId,
-      parentId: parentId === 'null' ? null : parentId,
+      classId: this.stripQuotes(classId),
+      parentId: parentId === 'null' ? null : this.stripQuotes(parentId!),
       filePath,
       lineNumber: document.positionAt(positions[index]).line + 1,
       position: positions[index]
@@ -246,7 +261,7 @@ export class SqlParser {
       name: this.stripQuotes(name),
       description: this.stripQuotes(description || ''),
       dataType,
-      sourceClassId: sourceClassId || undefined,
+      sourceClassId: this.stripQuotes(sourceClassId || '') || undefined,
       filePath,
       lineNumber: document.positionAt(positions[index]).line + 1,
       position: positions[index]
@@ -267,12 +282,12 @@ export class SqlParser {
 
 
 
-  private getValue(columns: string[], values: string[], column: string): string | null {
+  public getValue(columns: string[], values: string[], column: string): string | null {
     const index = columns.indexOf(column);
     return index >= 0 && index < values.length ? values[index] : null;
   }
 
-  private isValidUuid(uuid: string | null): boolean {
+  public isValidUuid(uuid: string | null): boolean {
     return !!uuid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
   }
 }

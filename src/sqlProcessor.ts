@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { AliasService } from './aliasService';
-import { getConfig } from './settings';
-import { ClassInfo, ClassPropertyLink, ClassType, ObjectInfo, ParsedFile, PropertyInfo } from './models';
+import { ClassInfo, ClassPropertyLink, ObjectInfo, ParsedFile, PropertyInfo } from './models';
 import { SqlParser } from './sqlParser';
 import { ModelLinker } from './modelLinker';
 import { CacheManger } from './cacheManager';
-import { link } from 'fs';
 
 const CLASS_TABLE = 'classes';
 const PROPERTY_TABLE = 'property_definitions';
@@ -16,15 +14,16 @@ const OBJECTS_TABLE = 'objects';
 
 
 export class SqlProcessor {
-  private parser = new SqlParser();
-  private cacheManager = new CacheManger();
-  private linker: ModelLinker;
 
-  constructor(private aliasService: AliasService) {
+  constructor(
+    private aliasService: AliasService,
+    private parser: SqlParser = new SqlParser(),
+    private linker: ModelLinker = new ModelLinker(aliasService),
+    private cacheManager: CacheManger = new CacheManger()
+  ) {
     this.aliasService.onAliasesChanged(() => {
       this.cacheManager.invalidateCache();
-    })
-    this.linker = new ModelLinker(this.aliasService);
+    });
   }
 
   public async parseAllSqlFiles(forceRefresh = false): Promise<{
@@ -147,25 +146,25 @@ export class SqlProcessor {
         if (insert.tableName === CLASS_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const classInfo = this.parser.parseClass(insert, i, filePath, document);
-            if (classInfo) classes.push(classInfo);
+            if (classInfo) {classes.push(classInfo);}
           }
         }
         else if (insert.tableName === PROPERTY_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const property = this.parser.parseProperty(insert, i, filePath, document);
-            if (property) properties.push(property);
+            if (property) {properties.push(property);}
           }
         }
         else if (insert.tableName === LINK_TABLE) {
           for (const values of insert.values) {
             const link = this.parser.parseLink(insert.columns, values);
-            if (link) links.push(link);
+            if (link) {links.push(link);}
           }
         }
         else if (insert.tableName === OBJECTS_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const object = this.parser.parseObject(insert, i, filePath, document);
-            if (object) objects.push(object);
+            if (object) {objects.push(object);}
           }
         }
       } catch (error) {
@@ -178,3 +177,5 @@ export class SqlProcessor {
     return parsed;
   }
 }
+
+export { SqlParser };

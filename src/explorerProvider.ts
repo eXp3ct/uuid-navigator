@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ClassInfo, ObjectInfo, PropertyInfo } from './sqlProcessor';
+import { ClassInfo, ObjectInfo, PropertyInfo } from './models';
 
 export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<ExplorerItem | undefined>();
