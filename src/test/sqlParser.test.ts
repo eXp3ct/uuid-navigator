@@ -294,6 +294,111 @@ describe('SqlParser', () => {
       const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
       expect(result?.parentId).toBeNull();
     });
+
+    it('should return null when missing id', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['name', 'class_id'], // Нет id
+        values: [["'Test'", "'cls1'"]],
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when missing name', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'class_id'], // Нет name
+        values: [["'obj1'", "'cls1'"]],
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when missing class_id', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'name'], // Нет class_id
+        values: [["'obj1'", "'Test'"]],
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when id is empty', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'name', 'class_id'],
+        values: [["", "'Test'", "'cls1'"]], // Пустой id
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when name is empty', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'name', 'class_id'],
+        values: [["'obj1'", "", "'cls1'"]], // Пустое name
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when class_id is empty', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'name', 'class_id'],
+        values: [["'obj1'", "'Test'", ""]], // Пустой class_id
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toBeNull();
+    });
+
+    it('should return object when all required fields are present', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'name', 'class_id', 'parent_id', 'description'],
+        values: [["obj1", "'Test'", "'cls1'", "'parent1'", "'Desc'"]],
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result).toEqual({
+        id: 'obj1',
+        name: 'Test',
+        description: 'Desc',
+        classId: 'cls1',
+        parentId: 'parent1',
+        filePath: 'file.sql',
+        lineNumber: 1,
+        position: 0
+      });
+    });
+
+    it('should handle null parent_id', () => {
+      const insert = {
+        tableName: 'objects',
+        columns: ['id', 'name', 'class_id', 'parent_id'],
+        values: [["'obj1'", "'Test'", "'cls1'", 'null']], // Явный null
+        positions: [0]
+      };
+
+      const result = parser.parseObject(insert, 0, 'file.sql', mockDocument);
+      expect(result?.parentId).toBeNull();
+    });
   });
 
   describe('parseLink', () => {

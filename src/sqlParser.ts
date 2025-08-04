@@ -195,7 +195,7 @@ export class SqlParser {
       name: this.stripQuotes(name),
       description: this.stripQuotes(description || ''),
       classId: this.stripQuotes(classId),
-      parentId: parentId === 'null' ? null : this.stripQuotes(parentId!),
+      parentId: parentId === 'null' ? null : this.stripQuotes(parentId || ''),
       filePath,
       lineNumber: document.positionAt(positions[index]).line + 1,
       position: positions[index]
