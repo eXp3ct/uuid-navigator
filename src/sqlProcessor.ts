@@ -148,11 +148,24 @@ export class SqlProcessor {
   }
 
   private normalizeValue(value: string): string {
+    // Если значение начинается и заканчивается кавычками - обрабатываем как строку
+    if ((value.startsWith("'") && value.endsWith("'")) ||
+      (value.startsWith('"') && value.endsWith('"'))) {
+      // Убираем внешние кавычки
+      let result = value.slice(1, -1);
+      // Заменяем специальные значения внутри строки
+      result = result
+        .replace(/:my_utc_now/g, 'NULL')
+        .replace(/:my_admin_id/g, 'NULL')
+        .replace(/gen_random_uuid\(\)/g, 'NULL');
+      return result;
+    }
+
+    // Для нестроковых значений просто делаем замены
     return value
       .replace(/:my_utc_now/g, 'NULL')
       .replace(/:my_admin_id/g, 'NULL')
       .replace(/gen_random_uuid\(\)/g, 'NULL')
-      .replace(/^['"]|['"]$/g, '')
       .trim();
   }
 
@@ -173,9 +186,53 @@ export class SqlProcessor {
 
       if (!valueMatches) { continue; }
 
-      const values = valueMatches.map(vGroup =>
-        vGroup.slice(1, -1).split(/(?<!\\),/).map(val => this.normalizeValue(val.trim()))
-      );
+      const values = valueMatches.map(vGroup => {
+        // Удаляем внешние скобки
+        const inner = vGroup.slice(1, -1).trim();
+        const values = [];
+        let current = '';
+        let inString = false;
+        let stringChar = '';
+        let depth = 0;
+
+        for (let i = 0; i < inner.length; i++) {
+          const char = inner[i];
+
+          // Обработка строковых литералов
+          if (char === "'" || char === '"') {
+            if (!inString) {
+              inString = true;
+              stringChar = char;
+            } else if (char === stringChar) {
+              // Проверяем, что это не экранированная кавычка
+              if (inner[i - 1] !== '\\') {
+                inString = false;
+              }
+            }
+          }
+
+          // Обработка скобок только вне строковых литералов
+          if (!inString && (char === '(' || char === ')')) {
+            if (char === '(') depth++;
+            if (char === ')') depth--;
+          }
+
+          // Разделитель - запятая вне строки и скобок
+          if (char === ',' && !inString && depth === 0) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+
+        // Добавляем последнее значение
+        if (current.trim()) {
+          values.push(current.trim());
+        }
+
+        return values.map(v => this.normalizeValue(v));
+      });
 
       const positions = [];
       const uuidRegex = /'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'/gi;
@@ -195,16 +252,36 @@ export class SqlProcessor {
     const groups = [];
     let depth = 0;
     let start = -1;
+    let inString = false;
+    let stringChar = '';
 
     for (let i = 0; i < str.length; i++) {
-      if (str[i] === '(') {
-        if (depth === 0) { start = i; }
-        depth++;
+      const char = str[i];
+
+      // Обработка строковых литералов
+      if (char === "'" || char === '"') {
+        if (!inString) {
+          inString = true;
+          stringChar = char;
+        } else if (char === stringChar) {
+          // Проверяем, что это не экранированная кавычка
+          if (str[i - 1] !== '\\') {
+            inString = false;
+          }
+        }
       }
-      else if (str[i] === ')') {
-        depth--;
-        if (depth === 0 && start !== -1) {
-          groups.push(str.substring(start, i + 1));
+
+      // Обработка скобок только вне строковых литералов
+      if (!inString) {
+        if (char === '(') {
+          if (depth === 0) { start = i; }
+          depth++;
+        } else if (char === ')') {
+          depth--;
+          if (depth === 0 && start !== -1) {
+            groups.push(str.substring(start, i + 1));
+            start = -1;
+          }
         }
       }
     }
