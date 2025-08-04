@@ -1,6 +1,6 @@
 import { ClassInfo, PropertyInfo, ObjectInfo, ParsedFile } from "./models";
 
-export class CacheManger {
+export class CacheManager {
   private cache: {
     data: { classes: ClassInfo[]; properties: PropertyInfo[]; objects: ObjectInfo[] };
     fileHashes: Map<string, string>;

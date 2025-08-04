@@ -4,7 +4,7 @@ import { AliasService } from './aliasService';
 import { ClassInfo, ClassPropertyLink, ObjectInfo, ParsedFile, PropertyInfo } from './models';
 import { SqlParser } from './sqlParser';
 import { ModelLinker } from './modelLinker';
-import { CacheManger } from './cacheManager';
+import { CacheManager } from './cacheManager';
 
 const CLASS_TABLE = 'classes';
 const PROPERTY_TABLE = 'property_definitions';
@@ -19,7 +19,7 @@ export class SqlProcessor {
     private aliasService: AliasService,
     private parser: SqlParser = new SqlParser(),
     private linker: ModelLinker = new ModelLinker(aliasService),
-    private cacheManager: CacheManger = new CacheManger()
+    private cacheManager: CacheManager = new CacheManager()
   ) {
     this.aliasService.onAliasesChanged(() => {
       this.cacheManager.invalidateCache();
