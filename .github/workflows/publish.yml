@@ -4,16 +4,38 @@ on:
   pull_request:
     branches: [main]
     types: [closed]
-    
+
+  push:
+    branches: [main]
+
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
+        description: "Environment to deploy"
         required: true
-        default: 'production'
-  
+        default: "production"
+
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: yarn test:coverage
+
   publish-manual:
+    needs: test
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -58,8 +80,8 @@ jobs:
           files: |
             *.vsix
 
-            
   publish-on-merge:
+    needs: test
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && !contains(github.event.pull_request.title, '[skip publish]')
     runs-on: ubuntu-latest
     environment: production

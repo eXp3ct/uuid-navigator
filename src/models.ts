@@ -14,7 +14,7 @@ export interface ExtensionConfig {
   ignoreStatus: boolean;
   ignoreUuid: string;
   autoLinking: boolean;
-  autoLinkedProperties: {name: string; uuid: string; classId: string | null;}[];
+  autoLinkedProperties: { name: string; uuid: string; classId: string | null; }[];
 }
 
 export interface ExtensionContext extends vscode.ExtensionContext {
@@ -64,4 +64,50 @@ export enum ClassType {
   Системный = 0,
   Справочный = 1,
   Обрабатываемый = 2
+}
+
+export interface ClassInfo {
+  id: string;
+  name: string;
+  description: string;
+  classType: number;
+  properties: PropertyInfo[];
+  objects: ObjectInfo[];
+  filePath?: string;
+  lineNumber?: number;
+  position?: number;
+}
+
+export interface PropertyInfo {
+  id: string;
+  name: string;
+  description: string;
+  dataType: number;
+  sourceClassId?: string;
+  filePath?: string;
+  lineNumber?: number;
+  position?: number;
+}
+
+export interface ObjectInfo {
+  id: string;
+  name: string;
+  description: string;
+  classId: string;
+  parentId: string | null;
+  filePath?: string;
+  lineNumber?: number;
+  position?: number;
+}
+
+export interface ClassPropertyLink {
+  classId: string;
+  propertyId: string;
+}
+
+export interface ParsedFile {
+  classes: ClassInfo[];
+  properties: PropertyInfo[];
+  links: ClassPropertyLink[];
+  objects: ObjectInfo[];
 }
