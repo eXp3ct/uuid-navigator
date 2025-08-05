@@ -342,7 +342,6 @@
     "@types/lodash.debounce": "^4.0.9",
     "@types/marked": "^6.0.0",
     "jsonc-parser": "^3.3.1",
-    "lodash.debounce": "^4.0.8",
-    "marked": "^16.1.2"
+    "lodash.debounce": "^4.0.8"
   }
 }
