@@ -131,7 +131,7 @@ export class SqlProcessor {
     if (cached && cached.hash === fileHash) {
       return cached.parsed;
     }
-
+    
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
     const content = this.parser.normalizeSql(document.getText());
     const inserts = this.parser.extractInserts(content);
@@ -164,7 +164,7 @@ export class SqlProcessor {
         else if (insert.tableName === OBJECTS_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const object = this.parser.parseObject(insert, i, filePath, document);
-            if (object) {objects.push(object);}
+            if (object) {objects.push(object); }
           }
         }
       } catch (error) {

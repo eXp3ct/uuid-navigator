@@ -71,7 +71,7 @@ export function registerCommands(
 
     // Навигация
     vscode.commands.registerCommand(COMMANDS.GOTO_DEFINITION, (uuid: string) =>
-      handleGoToDefinition(uuid, classes, properties, objects)),
+      handleGoToDefinition(uuid, sqlProcessor)),
 
     // Explorer
     vscode.commands.registerCommand(COMMANDS.REFRESH_EXPLORER, () =>
@@ -91,7 +91,7 @@ export function registerCommands(
     ),
 
     vscode.commands.registerCommand(COMMANDS.GOTO_DEFINITION_FROM_TREEVIEW, (item: ExplorerItem) => 
-      handleGoToDefinition(item.uuid, classes, properties, objects)),
+      handleGoToDefinition(item.uuid, sqlProcessor)),
 
     // Валидация
     vscode.commands.registerCommand(COMMANDS.VALIDATE_CURRENT_FILE, () =>
@@ -195,7 +195,9 @@ async function handleManageClassAliases(
   }
 }
 
-async function handleGoToDefinition(uuid: string, classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
+async function handleGoToDefinition(uuid: string, sqlProcessor: SqlProcessor) {
+  const {classes, properties, objects} = await sqlProcessor.parseAllSqlFiles();
+
   const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid);
   if (!target?.filePath) {
     config.showNotifications && vscode.window.showErrorMessage(`Definition for UUID ${uuid} not found`);
