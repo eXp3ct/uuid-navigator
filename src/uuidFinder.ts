@@ -72,8 +72,7 @@ export class UuidFinder {
         result.dataType = property.dataType;
 
         const classInfo = this.classes.find(c =>
-          c.properties.some(p => p.id === uuid) ||
-          c.id === property.sourceClassId
+          c.properties.some(p => p.id === uuid)
         );
 
         if (classInfo) {
