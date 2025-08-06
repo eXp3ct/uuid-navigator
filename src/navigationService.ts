@@ -6,6 +6,7 @@ import { getUuidRange } from './utils';
 let highlightDecorations: vscode.TextEditorDecorationType[] = [];
 
 export function registerNavigationCommands(context: vscode.ExtensionContext) {
+  //TODO: убрать от сюда
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(
       ['sql', 'mssql'],
@@ -43,7 +44,6 @@ async function findUuidLocations(uuid: string) {
 
     matches.forEach(match => {
       locations.push(new vscode.Location(file, match.range));
-      highlightMatch(file, match);
     });
   }
 
@@ -81,22 +81,4 @@ function findUuidMatches(document: vscode.TextDocument, uuid: string) {
   }
 
   return matches;
-}
-
-function highlightMatch(file: vscode.Uri, match: { range: vscode.Range }) {
-  vscode.window.visibleTextEditors.forEach(editor => {
-    if (editor.document.uri.toString() === file.toString()) {
-      const decor = vscode.window.createTextEditorDecorationType({
-        backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground'),
-        border: `1px solid ${new vscode.ThemeColor('editor.findMatchHighlightBorder')}`
-      });
-
-      editor.setDecorations(decor, [{
-        range: match.range,
-        hoverMessage: `Reference to UUID`
-      }]);
-
-      setTimeout(() => decor.dispose(), 5000);
-    }
-  });
 }

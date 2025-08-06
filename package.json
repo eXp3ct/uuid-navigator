@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -342,7 +342,6 @@
     "@types/lodash.debounce": "^4.0.9",
     "@types/marked": "^6.0.0",
     "jsonc-parser": "^3.3.1",
-    "lodash.debounce": "^4.0.8",
-    "marked": "^16.1.2"
+    "lodash.debounce": "^4.0.8"
   }
 }
