@@ -129,9 +129,10 @@ export class SqlProcessor {
   private async parseFile(filePath: string, fileHash: string): Promise<ParsedFile> {
     const cached = this.cacheManager.getFileCache(filePath);
     if (cached && cached.hash === fileHash) {
+      console.log('Cached value for file', filePath);
       return cached.parsed;
     }
-
+    
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
     const content = this.parser.normalizeSql(document.getText());
     const inserts = this.parser.extractInserts(content);
@@ -164,7 +165,7 @@ export class SqlProcessor {
         else if (insert.tableName === OBJECTS_TABLE) {
           for (let i = 0; i < insert.values.length; i++) {
             const object = this.parser.parseObject(insert, i, filePath, document);
-            if (object) {objects.push(object);}
+            if (object) {objects.push(object); }
           }
         }
       } catch (error) {
