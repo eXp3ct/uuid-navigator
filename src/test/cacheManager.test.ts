@@ -1,12 +1,13 @@
 import { CacheManager } from '../cacheManager';
-import { ClassInfo, PropertyInfo, ObjectInfo } from '../models';
+import { ClassInfo, PropertyInfo, ObjectInfo, RoleInfo } from '../models';
 
 describe('CacheManager', () => {
   let cacheManager: CacheManager;
   const sampleData = {
     classes: [{ id: 'cls1', name: 'Class1' }] as ClassInfo[],
     properties: [{ id: 'prop1', name: 'Property1' }] as PropertyInfo[],
-    objects: [{ id: 'obj1', name: 'Object1' }] as ObjectInfo[]
+    objects: [{ id: 'obj1', name: 'Object1' }] as ObjectInfo[],
+    roles: [{ id: 'role1', name: 'Role1'}] as RoleInfo[]
   };
 
   beforeEach(() => {
@@ -36,7 +37,8 @@ describe('CacheManager', () => {
           classes: [],
           properties: [],
           links: [],
-          objects: []
+          objects: [],
+          roles: []
         }
       };
 
@@ -45,7 +47,7 @@ describe('CacheManager', () => {
     });
 
     it('should invalidate single file cache', () => {
-      cacheManager.setFileCache('file1.sql', 'hash1', { classes: [], properties: [], links: [], objects: [] });
+      cacheManager.setFileCache('file1.sql', 'hash1', { classes: [], properties: [], links: [], objects: [], roles: [] });
       cacheManager.invalidateFileCache('file1.sql');
       expect(cacheManager.getFileCache('file1.sql')).toBeUndefined();
     });
@@ -60,7 +62,7 @@ describe('CacheManager', () => {
 
     it('should completely clear cache', () => {
       cacheManager.setCache(sampleData, new Map());
-      cacheManager.setFileCache('file1.sql', 'hash1', { classes: [], properties: [], links: [], objects: [] });
+      cacheManager.setFileCache('file1.sql', 'hash1', { classes: [], properties: [], links: [], objects: [], roles: [] });
 
       cacheManager.invalidateCache();
 

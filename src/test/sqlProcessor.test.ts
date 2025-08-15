@@ -5,7 +5,7 @@ import { AliasService } from '../aliasService';
 import { SqlParser } from '../sqlParser';
 import { ModelLinker } from '../modelLinker';
 import { CacheManager } from '../cacheManager';
-import { ClassInfo, PropertyInfo, ObjectInfo, ParsedFile } from '../models';
+import { ClassInfo, PropertyInfo, ObjectInfo, ParsedFile, RoleInfo } from '../models';
 
 jest.mock('vscode');
 jest.mock('crypto');
@@ -35,7 +35,8 @@ describe('SqlProcessor', () => {
   const sampleParsedData = {
     classes: [{ id: 'cls1', name: 'Class1' }] as ClassInfo[],
     properties: [{ id: 'prop1', name: 'Property1' }] as PropertyInfo[],
-    objects: [{ id: 'obj1', name: 'Object1' }] as ObjectInfo[]
+    objects: [{ id: 'obj1', name: 'Object1' }] as ObjectInfo[],
+    roles: [{id: 'role1', name: 'Role1'}] as RoleInfo[]
   };
 
   beforeEach(() => {
@@ -170,7 +171,12 @@ describe('SqlProcessor', () => {
           id: 'obj1', name: 'Object1', classId: 'cls1',
           description: '',
           parentId: null
-        }]
+        }],
+        roles: [
+          {
+            id: 'role1', name: "Role1", description: ''
+          }
+        ]
       };
 
       (sqlProcessor as any).parseFile = jest.fn().mockResolvedValue(mockParsedFile);
@@ -192,7 +198,8 @@ describe('SqlProcessor', () => {
         classes: [],
         properties: [],
         links: [],
-        objects: []
+        objects: [],
+        roles: []
       };
 
       mockCacheManager.getFileCache.mockReturnValue({
