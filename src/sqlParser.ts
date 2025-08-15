@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ObjectInfo, ClassInfo, PropertyInfo, ClassPropertyLink } from "./models";
+import { ObjectInfo, ClassInfo, PropertyInfo, ClassPropertyLink, RoleInfo } from "./models";
 
 export class SqlParser {
   public normalizeSql(content: string): string {
@@ -280,6 +280,30 @@ export class SqlParser {
     return { classId, propertyId };
   }
 
+  public parseRole(
+    insert: any,
+    index: number,
+    filePath: string,
+    document: vscode.TextDocument
+  ): RoleInfo | null {
+    const { columns, values, positions } = insert;
+    const row = values[index];
+
+    const id = this.getValue(columns, row, 'id');
+    const name = this.getValue(columns, row, 'name');
+    const description = this.getValue(columns, row, 'description');
+    
+    if (!id || !name) { return null; }
+
+    return {
+      id,
+      name: this.stripQuotes(name),
+      description: this.stripQuotes(description || '') || '',
+      filePath,
+      lineNumber: document.positionAt(positions[index]).line + 1,
+      position: positions[index]
+    };
+  }
 
 
   public getValue(columns: string[], values: string[], column: string): string | null {

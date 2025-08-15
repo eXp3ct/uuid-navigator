@@ -29,7 +29,7 @@ export interface ExtensionContext extends vscode.ExtensionContext {
 
 export interface UuidInfo {
   uuid: string;
-  type: 'class' | 'property' | 'object';
+  type: 'class' | 'property' | 'object' | 'role';
   className?: string;
   classUuid?: string;
   propertyName?: string;
@@ -100,6 +100,15 @@ export interface ObjectInfo {
   position?: number;
 }
 
+export interface RoleInfo {
+  id: string;
+  name: string;
+  description: string;
+  filePath?: string;
+  lineNumber?: number;
+  position?: number;
+}
+
 export interface ClassPropertyLink {
   classId: string;
   propertyId: string;
@@ -110,4 +119,5 @@ export interface ParsedFile {
   properties: PropertyInfo[];
   links: ClassPropertyLink[];
   objects: ObjectInfo[];
+  roles: RoleInfo[];
 }
