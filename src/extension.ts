@@ -21,11 +21,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	const aliasService = new AliasService(context);
 	const sqlProcessor = new SqlProcessor(aliasService);
 	const sqlValidator = new SqlValidator();
-	const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
+	const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles();
 
 	// Создание провайдеров 
-	const blameProvider = new BlameProvider(context, classes, properties, objects);
-	const explorerProvider = new ExplorerProvider(classes, objects);
+	const blameProvider = new BlameProvider(context, classes, properties, objects, roles);
+	const explorerProvider = new ExplorerProvider(classes, objects, roles);
 	const treeView = vscode.window.createTreeView('uuidExplorer', {
 		treeDataProvider: explorerProvider
 	});

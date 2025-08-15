@@ -1,8 +1,8 @@
-import { ClassInfo, PropertyInfo, ObjectInfo, ParsedFile } from "./models";
+import { ClassInfo, PropertyInfo, ObjectInfo, ParsedFile, RoleInfo } from "./models";
 
 export class CacheManager {
   private cache: {
-    data: { classes: ClassInfo[]; properties: PropertyInfo[]; objects: ObjectInfo[] };
+    data: { classes: ClassInfo[]; properties: PropertyInfo[]; objects: ObjectInfo[], roles: RoleInfo[] };
     fileHashes: Map<string, string>;
     timestamp: number;
   } | null = null;
@@ -30,7 +30,7 @@ export class CacheManager {
     return this.cache?.data;
   }
 
-  public setCache(data: { classes: ClassInfo[]; properties: PropertyInfo[]; objects: ObjectInfo[] }, fileHashes: Map<string, string>) {
+  public setCache(data: { classes: ClassInfo[]; properties: PropertyInfo[]; objects: ObjectInfo[]; roles: RoleInfo[] }, fileHashes: Map<string, string>) {
     this.cache = {
       data,
       fileHashes,

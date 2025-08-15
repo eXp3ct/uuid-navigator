@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -286,7 +286,7 @@
         },
         {
           "command": "uuid-navigator.goToDefinitionFromTreeView",
-          "when": "view == uuidExplorer && viewItem =~ /^(class|property|object)$/",
+          "when": "view == uuidExplorer && viewItem =~ /^(class|property|object|role)$/",
           "group": "uuid-navigation"
         }
       ]

@@ -1,5 +1,5 @@
 import { ModelLinker } from '../modelLinker';
-import { ClassInfo, ClassType, ObjectInfo, PropertyInfo, ClassPropertyLink } from '../models';
+import { ClassInfo, ClassType, ObjectInfo, PropertyInfo, ClassPropertyLink, RoleInfo } from '../models';
 import { AliasService } from '../aliasService';
 import { mockConfig } from './__mocks__/settings';
 
@@ -182,12 +182,17 @@ describe('ModelLinker', () => {
           { id: 'obj2', name: 'BObject', classId: 'cls1', parentId: null, description: '' },
           { id: 'obj1', name: 'AObject', classId: 'cls1', parentId: null, description: '' }
         ];
+        const roles: RoleInfo[] = [
+          { id: 'role1', name: 'BRole', description: '' },
+          { id: 'role2', name: 'ARole', description: '' },
+        ];
 
-        const result = linker.sortModel(classes, properties, objects);
+        const result = linker.sortModel(classes, properties, objects, roles);
 
         expect(result.classes[0].name).toBe('AClass');
         expect(result.properties[0].name).toBe('AProperty');
         expect(result.objects[0].name).toBe('AObject');
+        expect(result.roles[0].name).toBe('ARole');
       });
 
       it('should sort nested properties and objects', () => {
@@ -208,7 +213,7 @@ describe('ModelLinker', () => {
           }
         ];
 
-        const result = linker.sortModel(classes, [], []);
+        const result = linker.sortModel(classes, [], [], []);
 
         expect(result.classes[0].properties[0].name).toBe('AProp');
         expect(result.classes[0].objects[0].name).toBe('AObject');
@@ -217,7 +222,7 @@ describe('ModelLinker', () => {
 
     describe('edge cases', () => {
       it('should handle empty inputs', () => {
-        const result = linker.sortModel([], [], []);
+        const result = linker.sortModel([], [], [], []);
         expect(result.classes).toEqual([]);
         expect(result.properties).toEqual([]);
         expect(result.objects).toEqual([]);
