@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ClassInfo, ObjectInfo, PropertyInfo, UuidInfo } from './models';
+import { ClassInfo, ObjectInfo, PropertyInfo, RoleInfo, UuidInfo } from './models';
 import { UuidFinder } from './uuidFinder';
 import { getConfig } from './settings';
 import { BlameTemplateRenderer } from './templateRenderer';
@@ -14,9 +14,10 @@ export class BlameProvider {
     private context: vscode.ExtensionContext,
     classes: ClassInfo[],
     properties: PropertyInfo[],
-    objects: ObjectInfo[]
+    objects: ObjectInfo[],
+    roles: RoleInfo[]
   ) {
-    this.uuidFinder = new UuidFinder(classes, properties, objects);
+    this.uuidFinder = new UuidFinder(classes, properties, objects, roles);
     this.initialize();
 
     //TODO убрать от сюда
@@ -74,8 +75,8 @@ export class BlameProvider {
     return markdown;
   }
 
-  public async refresh(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
-    this.uuidFinder.updateData(classes, properties, objects);
+  public async refresh(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[], roles: RoleInfo[]) {
+    this.uuidFinder.updateData(classes, properties, objects, roles);
     
     await this.uuidFinder.refreshCache();
   }

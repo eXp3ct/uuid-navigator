@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { ClassInfo, ObjectInfo, PropertyInfo } from './models';
+import { ClassInfo, ObjectInfo, PropertyInfo, RoleInfo } from './models';
 
 export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<ExplorerItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  constructor(private classes: ClassInfo[], private objects: ObjectInfo[]) { }
+  constructor(private classes: ClassInfo[], private objects: ObjectInfo[], private roles: RoleInfo[]) { }
 
   refresh(classes: ClassInfo[], objects: ObjectInfo[]): void {
     this.classes = classes;
@@ -20,19 +20,31 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
   getChildren(element?: ExplorerItem): Thenable<ExplorerItem[]> {
     if (!element) {
       // Корневой уровень - показываем классы
-      return Promise.resolve(
-        this.classes.map(cls => new ExplorerItem(
-          cls.name,
-          cls.id,
-          cls.description,
-          vscode.TreeItemCollapsibleState.Collapsed,
-          'class',
-          cls,
-          cls.filePath,
-          cls.lineNumber,
-          cls.position
-        ))
-      );
+      const items = this.classes.map(cls => new ExplorerItem(
+        cls.name,
+        cls.id,
+        cls.description,
+        vscode.TreeItemCollapsibleState.Collapsed,
+        'class',
+        cls,
+        cls.filePath,
+        cls.lineNumber,
+        cls.position
+      ));
+
+      items.push(...this.roles.map(role => new ExplorerItem(
+        role.name,
+        role.id,
+        role.description,
+        vscode.TreeItemCollapsibleState.None,
+        'role',
+        role,
+        role.filePath,
+        role.lineNumber,
+        role.position
+      )));
+
+      return Promise.resolve(items);
     }
 
     if (element.contextValue === 'class') {
@@ -116,8 +128,8 @@ export class ExplorerItem extends vscode.TreeItem {
     public readonly uuid: string,
     description: string,
     collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly contextValue: 'class' | 'property' | 'object' | 'properties-folder' | 'objects-folder',
-    public readonly data: ClassInfo | PropertyInfo | ObjectInfo,
+    public readonly contextValue: 'class' | 'property' | 'object' | 'role' | 'properties-folder' | 'objects-folder',
+    public readonly data: ClassInfo | PropertyInfo | ObjectInfo | RoleInfo,
     public readonly filePath?: string,
     public readonly lineNumber?: number,
     public readonly position?: number,
@@ -148,6 +160,9 @@ export class ExplorerItem extends vscode.TreeItem {
         break;
       case 'objects-folder':
         this.iconPath = new vscode.ThemeIcon('symbol-array');
+        break;
+      case 'role':
+        this.iconPath = new vscode.ThemeIcon('symbol-misc');
         break;
     }
   }

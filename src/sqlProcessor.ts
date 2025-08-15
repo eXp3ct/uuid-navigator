@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { AliasService } from './aliasService';
-import { ClassInfo, ClassPropertyLink, ObjectInfo, ParsedFile, PropertyInfo } from './models';
+import { ClassInfo, ClassPropertyLink, ObjectInfo, ParsedFile, PropertyInfo, RoleInfo } from './models';
 import { SqlParser } from './sqlParser';
 import { ModelLinker } from './modelLinker';
 import { CacheManager } from './cacheManager';
@@ -10,7 +10,7 @@ const CLASS_TABLE = 'classes';
 const PROPERTY_TABLE = 'property_definitions';
 const LINK_TABLE = 'classes_property_definitions';
 const OBJECTS_TABLE = 'objects';
-
+const ROLES_TABLE = 'public.roles';
 
 
 export class SqlProcessor {
@@ -30,6 +30,7 @@ export class SqlProcessor {
     classes: ClassInfo[];
     properties: PropertyInfo[];
     objects: ObjectInfo[];
+    roles: RoleInfo[];
   }> {
     const currentFileHashes = await this.getFileHashes();
 
@@ -40,10 +41,10 @@ export class SqlProcessor {
       }
     }
 
-    const { classes, properties, objects } = await this.parseFiles(currentFileHashes);
-    this.cacheManager.setCache({ classes, properties, objects }, currentFileHashes);
+    const { classes, properties, objects, roles } = await this.parseFiles(currentFileHashes);
+    this.cacheManager.setCache({ classes, properties, objects, roles }, currentFileHashes);
 
-    return { classes, properties, objects };
+    return { classes, properties, objects, roles };
   }
 
   public invalidateCache(): void {
@@ -75,18 +76,22 @@ export class SqlProcessor {
     classes: ClassInfo[];
     properties: PropertyInfo[];
     objects: ObjectInfo[];
+    roles: RoleInfo[];
   }> {
     const classMap = new Map<string, ClassInfo>();
     const propertyMap = new Map<string, PropertyInfo>();
     const objectMap = new Map<string, ObjectInfo>();
+    const rolesMap = new Map<string, RoleInfo>();
+
     const allLinks: ClassPropertyLink[] = [];
     let allClasses: ClassInfo[] = [];
     let allProperties: PropertyInfo[] = [];
     let allObjects: ObjectInfo[] = [];
+    let allRoles: RoleInfo[] = [];
 
     for (const [filePath, fileHash] of fileHashes) {
       try {
-        const { classes, properties, links, objects } = await this.parseFile(filePath, fileHash);
+        const { classes, properties, links, objects, roles } = await this.parseFile(filePath, fileHash);
 
         classes.forEach(cls => {
           if (!classMap.has(cls.id)) {
@@ -109,6 +114,13 @@ export class SqlProcessor {
           }
         });
 
+        roles.forEach(role => {
+          if(!rolesMap.has(role.id)){
+            rolesMap.set(role.id, role);
+            allRoles.push(role);
+          }
+        });
+
         allLinks.push(...links);
       } catch (error) {
         console.error(`Error processing file ${filePath}:`, error);
@@ -123,7 +135,7 @@ export class SqlProcessor {
     this.linker.linkClassesAndObjects(allClasses, allObjects);
 
     // Сортируем и возвращаем
-    return this.linker.sortModel(allClasses, allProperties, allObjects);
+    return this.linker.sortModel(allClasses, allProperties, allObjects, allRoles);
   }
 
   private async parseFile(filePath: string, fileHash: string): Promise<ParsedFile> {
@@ -140,6 +152,7 @@ export class SqlProcessor {
     const properties: PropertyInfo[] = [];
     const links: ClassPropertyLink[] = [];
     const objects: ObjectInfo[] = [];
+    const roles: RoleInfo[] = [];
 
     for (const insert of inserts) {
       try {
@@ -167,12 +180,18 @@ export class SqlProcessor {
             if (object) {objects.push(object); }
           }
         }
+        else if(insert.tableName === ROLES_TABLE){
+          for(let i = 0; i < insert.values.length; i++){
+            const role = this.parser.parseRole(insert, i, filePath, document);
+            if(role) { roles.push(role);}
+          }
+        }
       } catch (error) {
         console.error(`Error processing insert in ${filePath}:`, error);
       }
     }
 
-    const parsed = { classes, properties, links, objects };
+    const parsed = { classes, properties, links, objects, roles };
     this.cacheManager.setFileCache(filePath, fileHash, parsed);
     return parsed;
   }

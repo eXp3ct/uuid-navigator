@@ -156,8 +156,8 @@ export function setupFileWatchers(
 
   // Вотчер для BlameProvider
   createFileWatcher(async () => {
-    const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles();
-    await blameProvider.refresh(classes, properties, objects);
+    const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles();
+    await blameProvider.refresh(classes, properties, objects, roles );
   });
 }
 
@@ -196,9 +196,9 @@ async function handleManageClassAliases(
 }
 
 async function handleGoToDefinition(uuid: string, sqlProcessor: SqlProcessor) {
-  const {classes, properties, objects} = await sqlProcessor.parseAllSqlFiles();
+  const {classes, properties, objects, roles} = await sqlProcessor.parseAllSqlFiles();
 
-  const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid);
+  const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid) || roles.find(r => r.id === uuid);
   if (!target?.filePath) {
     config.showNotifications && vscode.window.showErrorMessage(`Definition for UUID ${uuid} not found`);
     return;
@@ -224,9 +224,9 @@ async function handleGoToDefinition(uuid: string, sqlProcessor: SqlProcessor) {
 }
 
 async function handleRefreshBlameCache(sqlProcessor: SqlProcessor, blameProvider: BlameProvider) {
-  const { classes, properties, objects } = await sqlProcessor.parseAllSqlFiles(true);
+  const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles(true);
 
-  await blameProvider.refresh(classes, properties, objects);
+  await blameProvider.refresh(classes, properties, objects, roles);
   config.showNotifications && vscode.window.showInformationMessage('UUID blame cache refreshed');
 }
 

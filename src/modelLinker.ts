@@ -1,5 +1,5 @@
 import { AliasService } from "./aliasService";
-import { ClassInfo, ClassPropertyLink, ClassType, ObjectInfo, PropertyInfo } from "./models";
+import { ClassInfo, ClassPropertyLink, ClassType, ObjectInfo, PropertyInfo, RoleInfo } from "./models";
 import { getConfig } from "./settings";
 
 export class ModelLinker {
@@ -147,11 +147,13 @@ export class ModelLinker {
   public sortModel(
     classes: ClassInfo[],
     properties: PropertyInfo[],
-    objects: ObjectInfo[]
+    objects: ObjectInfo[],
+    roles: RoleInfo[]
   ): {
     classes: ClassInfo[];
     properties: PropertyInfo[];
     objects: ObjectInfo[];
+    roles: RoleInfo[];
   } {
     const sortedClasses = classes
       .slice()
@@ -169,7 +171,8 @@ export class ModelLinker {
     return {
       classes: sortedClasses,
       properties: properties.slice().sort((a, b) => a.name.localeCompare(b.name)),
-      objects: objects.slice().sort((a, b) => a.name.localeCompare(b.name))
+      objects: objects.slice().sort((a, b) => a.name.localeCompare(b.name)),
+      roles: roles.slice().sort((a,b) => a.name.localeCompare(b.name))
     };
   }
 }

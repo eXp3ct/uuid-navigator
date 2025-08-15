@@ -1,4 +1,4 @@
-import { ClassInfo, ObjectInfo, PropertyInfo, UuidInfo } from './models';
+import { ClassInfo, ObjectInfo, PropertyInfo, RoleInfo, UuidInfo } from './models';
 import { getConfig } from './settings';
 
 export class UuidFinder {
@@ -6,18 +6,20 @@ export class UuidFinder {
   private classes: ClassInfo[];
   private properties: PropertyInfo[];
   private objects: ObjectInfo[];
+  private roles: RoleInfo[];
 
-  constructor(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
+  constructor(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[], roles: RoleInfo[]) {
     this.classes = classes;
     this.properties = properties;
     this.objects = objects;
+    this.roles = roles;
   }
 
   async initialize() {
-    await this.buildCache(this.classes, this.properties, this.objects);
+    await this.buildCache(this.classes, this.properties, this.objects, this.roles);
   }
 
-  async buildCache(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]): Promise<UuidInfo[]> {
+  async buildCache(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[], roles: RoleInfo[]): Promise<UuidInfo[]> {
     this.cache = [];
 
     classes.forEach(cls => {
@@ -46,6 +48,15 @@ export class UuidFinder {
         description: obj.description,
         type: 'object',
         classUuid: obj.parentId || ''
+      });
+    });
+
+    roles.forEach(role => {
+      this.cache.push({
+        uuid: role.id,
+        propertyName: role.name,
+        description: role.description,
+        type: 'role'
       });
     });
 
@@ -118,16 +129,25 @@ export class UuidFinder {
       }
     }
 
+    // if(cached.type === 'role') {
+    //   const role = this.roles.find(r => r.id === uuid);
+
+    //   if(role){
+    //     result.type = 
+    //   }
+    // }
+
     return result;
   }
 
-  public updateData(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[]) {
+  public updateData(classes: ClassInfo[], properties: PropertyInfo[], objects: ObjectInfo[], roles: RoleInfo[]) {
     this.classes = classes;
     this.properties = properties;
     this.objects = objects;
+    this.roles = roles;
   }
 
   public async refreshCache(): Promise<void> {
-    await this.buildCache(this.classes, this.properties, this.objects);
+    await this.buildCache(this.classes, this.properties, this.objects, this.roles);
   }
 }
