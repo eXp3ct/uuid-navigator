@@ -185,7 +185,7 @@ describe('ModelLinker', () => {
         const roles: RoleInfo[] = [
           { id: 'role1', name: 'BRole', description: '' },
           { id: 'role2', name: 'ARole', description: '' },
-        ]
+        ];
 
         const result = linker.sortModel(classes, properties, objects, roles);
 
