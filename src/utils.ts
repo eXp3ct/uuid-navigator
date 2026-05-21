@@ -11,5 +11,7 @@ export function getUuidRange(
 export function isSqlFile(document: vscode.TextDocument): boolean {
   return document.languageId === 'sql' ||
     document.languageId === 'mssql' ||
+    document.languageId === 'json' ||
+    document.fileName.endsWith('.json') ||
     document.fileName.endsWith('.sql');
 }

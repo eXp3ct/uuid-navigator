@@ -42,7 +42,7 @@ export class BlameProvider {
     
     if (config.showBlameOnHover) {
       this.hoverProvider = vscode.languages.registerHoverProvider(
-        ['sql', 'mssql'],
+        ['sql', 'mssql', 'json'],
         {
           provideHover: async (document, position) => {
             const range = getUuidRange(document, position);

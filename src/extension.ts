@@ -7,7 +7,6 @@ import { ExplorerProvider } from './explorerProvider';
 import { SqlValidator } from './sqlValidator';
 import { registerCommands, setupFileWatchers } from './commandHandlers';
 import { AliasService } from './aliasService';
-import path from 'path';
 
 export async function activate(context: vscode.ExtensionContext) {
 	checkForExtensionUpdate(context);

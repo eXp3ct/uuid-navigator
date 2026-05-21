@@ -1,8 +1,7 @@
-// aliasService.ts
 import * as vscode from 'vscode';
 
 interface ClassAliasMap {
-  [classId: string]: string; // Теперь храним один алиас как строку
+  [classId: string]: string;
 }
 
 export class AliasService {
