@@ -129,13 +129,15 @@ export class UuidFinder {
       }
     }
 
-    // if(cached.type === 'role') {
-    //   const role = this.roles.find(r => r.id === uuid);
+    if(cached.type === 'role') {
+      const role = this.roles.find(r => r.id === uuid);
 
-    //   if(role){
-    //     result.type = 
-    //   }
-    // }
+      if(role){
+        result.propertyName = role.name;
+        result.uuid = role.id;
+        result.description = role.description; 
+      }
+    }
 
     return result;
   }

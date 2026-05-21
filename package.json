@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -96,6 +96,12 @@
         "id": "mssql",
         "aliases": [
           "MS SQL"
+        ]
+      },
+      {
+        "id": "json",
+        "aliases": [
+          "JSON"
         ]
       }
     ],
@@ -321,7 +327,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
+    "@types/node": "^20.19.41",
     "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
