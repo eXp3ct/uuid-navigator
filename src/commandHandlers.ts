@@ -37,8 +37,6 @@ const COMMANDS = {
   GOTO_DEFINITION_FROM_TREEVIEW: 'uuid-navigator.goToDefinitionFromTreeView'
 };
 
-const config = getConfig();
-
 export function registerCommands(
   context: vscode.ExtensionContext,
   deps: CommandDependencies
@@ -178,7 +176,7 @@ async function handleManageClassAliases(
 ) {
   const cls = classes.find(c => c.id === item.uuid);
   if (!cls) {
-    config.showNotifications && vscode.window.showErrorMessage('Класс не найден');
+    getConfig().showNotifications && vscode.window.showErrorMessage('Класс не найден');
     return;
   }
 
@@ -199,7 +197,7 @@ async function handleManageClassAliases(
     await aliasService.setAlias(item.uuid, newAlias);
     await callback();
     const action = newAlias.trim() ? 'обновлен' : 'удален';
-    config.showNotifications && vscode.window.showInformationMessage(`Алиас для класса "${cls.name}" ${action}`);
+    getConfig().showNotifications && vscode.window.showInformationMessage(`Алиас для класса "${cls.name}" ${action}`);
   }
 }
 
@@ -208,7 +206,7 @@ async function handleGoToDefinition(uuid: string, sqlProcessor: SqlProcessor) {
 
   const target = classes.find(c => c.id === uuid) || properties.find(p => p.id === uuid) || objects.find(o => o.id === uuid) || roles.find(r => r.id === uuid);
   if (!target?.filePath) {
-    config.showNotifications && vscode.window.showErrorMessage(`Definition for UUID ${uuid} not found`);
+    getConfig().showNotifications && vscode.window.showErrorMessage(`Definition for UUID ${uuid} not found`);
     return;
   }
 
@@ -219,15 +217,15 @@ async function handleGoToDefinition(uuid: string, sqlProcessor: SqlProcessor) {
     const match = new RegExp(`'${uuid}'`).exec(text);
 
     if (!match) {
-      config.showNotifications && vscode.window.showErrorMessage(`UUID not found in file`);
+      getConfig().showNotifications && vscode.window.showErrorMessage(`UUID not found in file`);
       return;
     }
 
     const position = document.positionAt(match.index);
     await vscode.window.showTextDocument(uri, { selection: new vscode.Range(position, position) });
-    config.showNotifications && vscode.window.showInformationMessage(`Navigated to: ${target.name || 'Unknown'}`);
+    getConfig().showNotifications && vscode.window.showInformationMessage(`Navigated to: ${target.name || 'Unknown'}`);
   } catch (error) {
-    config.showNotifications && vscode.window.showErrorMessage(`Failed to navigate: ${error}`);
+    getConfig().showNotifications && vscode.window.showErrorMessage(`Failed to navigate: ${error}`);
   }
 }
 
@@ -235,7 +233,7 @@ async function handleRefreshBlameCache(sqlProcessor: SqlProcessor, blameProvider
   const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles(true);
 
   await blameProvider.refresh(classes, properties, objects, roles);
-  config.showNotifications && vscode.window.showInformationMessage('UUID blame cache refreshed');
+  getConfig().showNotifications && vscode.window.showInformationMessage('UUID blame cache refreshed');
 }
 
 
@@ -249,7 +247,7 @@ async function handleShowExplorer() {
     await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER);
     await vscode.commands.executeCommand(COMMANDS.EXPLORER_FOCUS);
   } catch (error) {
-    config.showNotifications && vscode.window.showErrorMessage(`Failed to show UUID Explorer: ${error}`);
+    getConfig().showNotifications && vscode.window.showErrorMessage(`Failed to show UUID Explorer: ${error}`);
     console.error(error);
   }
 }
