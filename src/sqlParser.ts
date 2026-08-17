@@ -46,13 +46,22 @@ export class SqlParser {
     positions: number[];
   }[] {
     const inserts = [];
-    const insertRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*((?:\((?:[^()]|\([^)]*\))*\))(?:\s*,\s*\((?:[^()]|\([^)]*\))*\))*)/gi;
+    // Матчит только заголовок "INSERT INTO table (cols) VALUES" — сам блок значений
+    // ищется отдельно через scanValuesClause, т.к. он может содержать произвольно
+    // вложенные скобки внутри строковых литералов (например jsonb-функции вида
+    // two_pass_tsvector(jsonb_to_text({0}))), которые non-string-aware regex с
+    // ограниченной глубиной вложенности обрезает молча.
+    const headerRegex = /INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*/gi;
 
     let match;
-    while ((match = insertRegex.exec(content)) !== null) {
+    while ((match = headerRegex.exec(content)) !== null) {
       const tableName = match[1].trim();
       const columns = match[2].split(',').map(c => c.trim().replace(/["']/g, ''));
-      const valueMatches = this.extractValueGroups(match[3]);
+      const valuesStart = match.index + match[0].length;
+      const valuesText = this.scanValuesClause(content, valuesStart);
+      headerRegex.lastIndex = valuesStart + valuesText.length;
+
+      const valueMatches = this.extractValueGroups(valuesText);
 
       if (!valueMatches) { continue; }
 
@@ -108,19 +117,54 @@ export class SqlParser {
       const uuidRegex = /'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'/gi;
       let uuidMatch;
 
-      // Ищем UUID в оригинальном content, используя match.index
-      const valuesStartPos = match.index + match[0].indexOf('VALUES') + 6;
-      const valuesContent = content.slice(valuesStartPos);
+      // Ищем UUID в оригинальном content, используя позицию начала VALUES
+      const valuesContent = content.slice(valuesStart);
 
       while ((uuidMatch = uuidRegex.exec(valuesContent)) !== null) {
         // Добавляем позицию относительно начала всего content
-        positions.push(valuesStartPos + uuidMatch.index);
+        positions.push(valuesStart + uuidMatch.index);
       }
 
       inserts.push({ tableName, columns, values, positions });
     }
 
     return inserts;
+  }
+
+  /**
+   * Находит конец блока VALUES, начиная с позиции start: строково- и скобочно-
+   * осознанное сканирование до первого ';' вне строки и вне скобок (или до конца
+   * содержимого, если ';' не встретился).
+   */
+  private scanValuesClause(content: string, start: number): string {
+    let depth = 0;
+    let inString = false;
+    let stringChar = '';
+    let i = start;
+
+    for (; i < content.length; i++) {
+      const char = content[i];
+
+      if (inString) {
+        if (char === stringChar && content[i - 1] !== '\\') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === "'" || char === '"') {
+        inString = true;
+        stringChar = char;
+        continue;
+      }
+
+      if (char === '(') { depth++; continue; }
+      if (char === ')') { depth--; continue; }
+
+      if (char === ';' && depth === 0) { break; }
+    }
+
+    return content.slice(start, i).trim();
   }
 
   public extractValueGroups(str: string): string[] | null {

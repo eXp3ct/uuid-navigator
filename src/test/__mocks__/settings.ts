@@ -8,6 +8,8 @@ export const mockConfig = {
   applyStyles: true,
   ignoreStatus: false,
   ignoreUuid: '',
+  fuzzyClassMatching: true,
+  fuzzyClassMatchThreshold: 0.82,
   autoLinkedProperties: [] as AutoLinkedProperty[],
 };
 

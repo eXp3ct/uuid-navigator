@@ -1,32 +1,69 @@
 import { AliasService } from "./aliasService";
-import { ClassInfo, ClassPropertyLink, ClassType, ObjectInfo, PropertyInfo, RoleInfo } from "./models";
+import { findBestFuzzyMatch, FuzzyCandidate } from "./fuzzyMatch";
+import { ClassInfo, ClassPropertyLink, ClassType, ExtensionConfig, ObjectInfo, PropertyInfo, RoleInfo } from "./models";
 import { getConfig } from "./settings";
 
 export class ModelLinker {
   constructor(private aliasService: AliasService) { }
 
-  public linkClassesAndObjects(classes: ClassInfo[], objects: ObjectInfo[]) {
-    const classMap = new Map(classes.map(c => [c.id, c]));
-    const classNameMap = new Map(classes.map(c => [c.name.toLowerCase(), c]));
-    const config = getConfig();
+  /**
+   * Класс -> все его имена-варианты (собственное имя + alias), используется и для
+   * точного, и для fuzzy поиска класса по имени папки.
+   */
+  private buildClassNameMap(classes: ClassInfo[]): Map<string, ClassInfo> {
+    const classNameMap = new Map<string, ClassInfo>();
 
-    // Очищаем все существующие связи
     classes.forEach(cls => {
-      cls.objects = [];
-    });
-
-    // Заполняем мапу имен классов и алиасов
-    classes.forEach(cls => {
-      // Основное имя класса
       classNameMap.set(cls.name.toLowerCase(), cls);
 
-      // Добавляем алиас, если он есть
       if (this.aliasService) {
         const alias = this.aliasService.getAlias(cls.id);
         if (alias) {
           classNameMap.set(alias.toString().toLowerCase(), cls);
         }
       }
+    });
+
+    return classNameMap;
+  }
+
+  /**
+   * Точное совпадение по имени/алиасу, а если не нашлось и fuzzy-матчинг включён —
+   * ближайший класс по нормализованному имени/расстоянию Левенштейна.
+   */
+  private findClassByName(
+    name: string,
+    classNameMap: Map<string, ClassInfo>,
+    config: ExtensionConfig
+  ): ClassInfo | undefined {
+    const exact = classNameMap.get(name);
+    if (exact) { return exact; }
+
+    if (!config.fuzzyClassMatching) { return undefined; }
+
+    const candidates: FuzzyCandidate<ClassInfo>[] = Array.from(classNameMap.entries())
+      .map(([key, item]) => ({ key, item }));
+
+    return findBestFuzzyMatch(name, candidates, config.fuzzyClassMatchThreshold) ?? undefined;
+  }
+
+  private folderNameOf(filePath: string | undefined): string | undefined {
+    if (!filePath) { return undefined; }
+
+    const pathParts = filePath.split(/[\\/]/);
+    if (pathParts.length < 2) { return undefined; }
+
+    return pathParts[pathParts.length - 2].toLowerCase();
+  }
+
+  public linkClassesAndObjects(classes: ClassInfo[], objects: ObjectInfo[]) {
+    const classMap = new Map(classes.map(c => [c.id, c]));
+    const classNameMap = this.buildClassNameMap(classes);
+    const config = getConfig();
+
+    // Очищаем все существующие связи
+    classes.forEach(cls => {
+      cls.objects = [];
     });
 
     // Связываем объекты с классами в несколько проходов
@@ -43,20 +80,17 @@ export class ModelLinker {
       }
     });
 
-    // 2. Привязка по имени папки/алиасу
+    // 2. Привязка по имени папки/алиасу (точное, затем fuzzy-фолбэк)
     objects.forEach(obj => {
       // Пропускаем уже привязанные объекты
       if (classMap.get(obj.classId)?.objects?.some(o => o.id === obj.id)) {
         return;
       }
 
-      if (!obj.filePath) { return; }
+      const classNameFromPath = this.folderNameOf(obj.filePath);
+      if (!classNameFromPath) { return; }
 
-      const pathParts = obj.filePath.split(/[\\/]/);
-      if (pathParts.length < 2) { return; }
-
-      const classNameFromPath = pathParts[pathParts.length - 2].toLowerCase();
-      const cls = classNameMap.get(classNameFromPath);
+      const cls = this.findClassByName(classNameFromPath, classNameMap, config);
 
       if (cls && !cls.objects?.some(o => o.id === obj.id)) {
         if (!cls.objects) { cls.objects = []; }
@@ -142,6 +176,24 @@ export class ModelLinker {
         });
       });
     }
+
+    // 3. Фолбэк для свойств без явной связи (classes_property_definitions) — по имени
+    // папки/алиасу класса, аналогично объектам (точное совпадение, затем fuzzy)
+    const linkedPropertyIds = new Set(links.map(l => l.propertyId));
+    const classNameMap = this.buildClassNameMap(classes);
+
+    properties.forEach(property => {
+      if (linkedPropertyIds.has(property.id)) { return; }
+
+      const classNameFromPath = this.folderNameOf(property.filePath);
+      if (!classNameFromPath) { return; }
+
+      const cls = this.findClassByName(classNameFromPath, classNameMap, config);
+
+      if (cls && !cls.properties.some(p => p.id === property.id)) {
+        cls.properties.push(property);
+      }
+    });
   }
 
   public sortModel(

@@ -16,6 +16,8 @@ export function getConfig(): ExtensionConfig {
     cursorPointer: config.get<boolean>('cursorPointer', true),
     ignoreStatus: config.get<boolean>('ignoreStatus', true),
     ignoreUuid: config.get<string>('ignoreUuid', 'b2d437bc-af8e-4d75-ac25-70f481251233'),
+    fuzzyClassMatching: config.get<boolean>('fuzzyClassMatching', true),
+    fuzzyClassMatchThreshold: config.get<number>('fuzzyClassMatchThreshold', 0.82),
     autoLinking: config.get<boolean>('autoLinking', true),
     autoLinkedProperties: config.get<{name: string; uuid: string; classId: string | null;}[]>('autoLinkedProperties', [
       {

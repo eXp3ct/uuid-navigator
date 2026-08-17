@@ -25,7 +25,9 @@ describe('ModelLinker', () => {
     (mockGetConfig as jest.Mock).mockReturnValue({
       ignoreStatus: false,
       ignoreUuid: '',
-      autoLinkedProperties: []
+      autoLinkedProperties: [],
+      fuzzyClassMatching: false,
+      fuzzyClassMatchThreshold: 0.82
     });
   });
 
@@ -252,6 +254,127 @@ describe('ModelLinker', () => {
         linker.linkClassesAndObjects(classes, objects);
         expect(classes[0].objects).toHaveLength(0);
       });
+    });
+  });
+
+  describe('fuzzy class matching', () => {
+    const fuzzyConfig = {
+      ignoreStatus: false,
+      ignoreUuid: '',
+      autoLinkedProperties: [],
+      fuzzyClassMatching: true,
+      fuzzyClassMatchThreshold: 0.82
+    };
+
+    it('links an object by folder name even with punctuation/case differences from the class name', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue(fuzzyConfig);
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'Отдел продаж', properties: [], objects: [], classType: 0, description: '' }
+      ];
+      const objects: ObjectInfo[] = [
+        { id: 'obj1', name: 'Object1', classId: 'unknown', parentId: null, description: '', filePath: '/root/Отдел-Продаж/file.sql' }
+      ];
+
+      linker.linkClassesAndObjects(classes, objects);
+
+      expect(classes[0].objects).toHaveLength(1);
+    });
+
+    it('does not link an object when the folder name is a genuinely different word, even fuzzy', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue(fuzzyConfig);
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'Работы', properties: [], objects: [], classType: 0, description: '' }
+      ];
+      const objects: ObjectInfo[] = [
+        { id: 'obj1', name: 'Object1', classId: 'unknown', parentId: null, description: '', filePath: '/root/Работа заявки/file.sql' }
+      ];
+
+      linker.linkClassesAndObjects(classes, objects);
+
+      expect(classes[0].objects).toHaveLength(0);
+    });
+
+    it('leaves exact-match-only behavior when fuzzyClassMatching is disabled', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue({ ...fuzzyConfig, fuzzyClassMatching: false });
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'Отдел продаж', properties: [], objects: [], classType: 0, description: '' }
+      ];
+      const objects: ObjectInfo[] = [
+        { id: 'obj1', name: 'Object1', classId: 'unknown', parentId: null, description: '', filePath: '/root/Отдел-Продаж/file.sql' }
+      ];
+
+      linker.linkClassesAndObjects(classes, objects);
+
+      expect(classes[0].objects).toHaveLength(0);
+    });
+
+    it('links a property with no explicit link row by folder name (exact match)', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue(fuzzyConfig);
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'Класс1', properties: [], objects: [], classType: ClassType.Обрабатываемый, description: '' }
+      ];
+      const properties: PropertyInfo[] = [
+        { id: 'prop1', name: 'Property1', dataType: 0, description: '', filePath: '/root/Класс1/file.sql' }
+      ];
+
+      linker.linkClassesAndProperties(classes, properties, []);
+
+      expect(classes[0].properties).toHaveLength(1);
+      expect(classes[0].properties[0].id).toBe('prop1');
+    });
+
+    it('links a property with no explicit link row by fuzzy folder name match', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue(fuzzyConfig);
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'Отдел продаж', properties: [], objects: [], classType: ClassType.Обрабатываемый, description: '' }
+      ];
+      const properties: PropertyInfo[] = [
+        { id: 'prop1', name: 'Property1', dataType: 0, description: '', filePath: '/root/Отдел-Продаж/file.sql' }
+      ];
+
+      linker.linkClassesAndProperties(classes, properties, []);
+
+      expect(classes[0].properties).toHaveLength(1);
+    });
+
+    it('does not run the folder-name fallback for a property that already has an explicit link', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue(fuzzyConfig);
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'ClassA', properties: [], objects: [], classType: ClassType.Обрабатываемый, description: '' },
+        { id: 'cls2', name: 'ClassB', properties: [], objects: [], classType: ClassType.Обрабатываемый, description: '' }
+      ];
+      const properties: PropertyInfo[] = [
+        { id: 'prop1', name: 'Property1', dataType: 0, description: '', filePath: '/root/ClassB/file.sql' }
+      ];
+      const links: ClassPropertyLink[] = [
+        { classId: 'cls1', propertyId: 'prop1' }
+      ];
+
+      linker.linkClassesAndProperties(classes, properties, links);
+
+      expect(classes[0].properties.map(p => p.id)).toEqual(['prop1']);
+      expect(classes[1].properties).toHaveLength(0);
+    });
+
+    it('leaves a property unlinked when no class name is even close to the folder name', () => {
+      (mockGetConfig as jest.Mock).mockReturnValue(fuzzyConfig);
+
+      const classes: ClassInfo[] = [
+        { id: 'cls1', name: 'Финансы', properties: [], objects: [], classType: ClassType.Обрабатываемый, description: '' }
+      ];
+      const properties: PropertyInfo[] = [
+        { id: 'prop1', name: 'Property1', dataType: 0, description: '', filePath: '/root/Совершенно другое/file.sql' }
+      ];
+
+      linker.linkClassesAndProperties(classes, properties, []);
+
+      expect(classes[0].properties).toHaveLength(0);
     });
   });
 });

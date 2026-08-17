@@ -144,6 +144,36 @@ describe('SqlParser', () => {
       expect(result[0].values[0][0]).toBe('value');
     });
 
+    it('should not truncate on doubly-nested parentheses inside a string value (real jsonb settings bug)', () => {
+      // Регрессия: значение вроде '{"TextSearchFunction": "two_pass_tsvector(jsonb_to_text({0}))"}'::jsonb
+      // содержит два уровня вложенных скобок ВНУТРИ строки. Старый парсер обрезал весь
+      // остаток VALUES-блока на этом месте, теряя все последующие строки таблицы.
+      const sql = `INSERT INTO property_definitions (id, name, settings) VALUES
+        ('11111111-1111-1111-1111-111111111111', 'Ключ задачи', '{"TextSearchFunction": "two_pass_tsvector(jsonb_to_text({0}))"}'::jsonb),
+        ('22222222-2222-2222-2222-222222222222', 'Следующее свойство', '{}'::jsonb),
+        ('33333333-3333-3333-3333-333333333333', 'И ещё одно', '{}'::jsonb);`;
+
+      const result = parser.extractInserts(sql);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].values).toHaveLength(3);
+      expect(result[0].values[1][0]).toBe('22222222-2222-2222-2222-222222222222');
+      expect(result[0].values[2][0]).toBe('33333333-3333-3333-3333-333333333333');
+    });
+
+    it('should stop the VALUES scan at a semicolon outside any string/parens, not consume the next statement', () => {
+      const sql = `INSERT INTO classes (id, name) VALUES ('a1111111-1111-1111-1111-111111111111', 'First');
+        INSERT INTO objects (id, name) VALUES ('b2222222-2222-2222-2222-222222222222', 'Second');`;
+
+      const result = parser.extractInserts(sql);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].tableName).toBe('classes');
+      expect(result[0].values).toEqual([['a1111111-1111-1111-1111-111111111111', 'First']]);
+      expect(result[1].tableName).toBe('objects');
+      expect(result[1].values).toEqual([['b2222222-2222-2222-2222-222222222222', 'Second']]);
+    });
+
   });
 
   describe('parseClass', () => {

@@ -13,6 +13,8 @@ export interface ExtensionConfig {
   blameTemplate?: string[];
   ignoreStatus: boolean;
   ignoreUuid: string;
+  fuzzyClassMatching: boolean;
+  fuzzyClassMatchThreshold: number;
   autoLinking: boolean;
   autoLinkedProperties: { name: string; uuid: string; classId: string | null; }[];
 }
