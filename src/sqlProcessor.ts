@@ -5,22 +5,23 @@ import { ClassInfo, ClassPropertyLink, ObjectInfo, ParsedFile, PropertyInfo, Rol
 import { SqlParser } from './sqlParser';
 import { ModelLinker } from './modelLinker';
 import { CacheManager } from './cacheManager';
-
-const CLASS_TABLE = 'classes';
-const PROPERTY_TABLE = 'property_definitions';
-const LINK_TABLE = 'classes_property_definitions';
-const OBJECTS_TABLE = 'objects';
-const ROLES_TABLE = 'public.roles';
-
+import { ConfigFileRepository } from './configFileRepository';
+import { ConfigFileParser } from './parsers/configParser';
+import { SqlFileParser } from './parsers/sqlFileParser';
+import { YamlFileParser } from './parsers/yamlFileParser';
 
 export class SqlProcessor {
+  private readonly parsers: ConfigFileParser[];
 
   constructor(
     private aliasService: AliasService,
     private parser: SqlParser = new SqlParser(),
     private linker: ModelLinker = new ModelLinker(aliasService),
-    private cacheManager: CacheManager = new CacheManager()
+    private cacheManager: CacheManager = new CacheManager(),
+    private repository: ConfigFileRepository = new ConfigFileRepository()
   ) {
+    this.parsers = [new SqlFileParser(this.parser), new YamlFileParser()];
+
     this.aliasService.onAliasesChanged(() => {
       this.cacheManager.invalidateCache();
     });
@@ -56,7 +57,7 @@ export class SqlProcessor {
   }
 
   private async getFileHashes(): Promise<Map<string, string>> {
-    const files = await vscode.workspace.findFiles('**/*.sql');
+    const files = await this.repository.findFiles();
     const hashes = new Map<string, string>();
 
     await Promise.all(files.map(async file => {
@@ -143,55 +144,13 @@ export class SqlProcessor {
     if (cached && cached.hash === fileHash) {
       return cached.parsed;
     }
-    
+
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-    const content = this.parser.normalizeSql(document.getText());
-    const inserts = this.parser.extractInserts(content);
+    const parser = this.parsers.find(p => p.canHandle(filePath));
+    const parsed = parser
+      ? parser.parseFile(filePath, document.getText(), document)
+      : { classes: [], properties: [], links: [], objects: [], roles: [] };
 
-    const classes: ClassInfo[] = [];
-    const properties: PropertyInfo[] = [];
-    const links: ClassPropertyLink[] = [];
-    const objects: ObjectInfo[] = [];
-    const roles: RoleInfo[] = [];
-
-    for (const insert of inserts) {
-      try {
-        if (insert.tableName === CLASS_TABLE) {
-          for (let i = 0; i < insert.values.length; i++) {
-            const classInfo = this.parser.parseClass(insert, i, filePath, document);
-            if (classInfo) {classes.push(classInfo);}
-          }
-        }
-        else if (insert.tableName === PROPERTY_TABLE) {
-          for (let i = 0; i < insert.values.length; i++) {
-            const property = this.parser.parseProperty(insert, i, filePath, document);
-            if (property) {properties.push(property);}
-          }
-        }
-        else if (insert.tableName === LINK_TABLE) {
-          for (const values of insert.values) {
-            const link = this.parser.parseLink(insert.columns, values);
-            if (link) {links.push(link);}
-          }
-        }
-        else if (insert.tableName === OBJECTS_TABLE) {
-          for (let i = 0; i < insert.values.length; i++) {
-            const object = this.parser.parseObject(insert, i, filePath, document);
-            if (object) {objects.push(object); }
-          }
-        }
-        else if(insert.tableName === ROLES_TABLE){
-          for(let i = 0; i < insert.values.length; i++){
-            const role = this.parser.parseRole(insert, i, filePath, document);
-            if(role) { roles.push(role);}
-          }
-        }
-      } catch (error) {
-        console.error(`Error processing insert in ${filePath}:`, error);
-      }
-    }
-
-    const parsed = { classes, properties, links, objects, roles };
     this.cacheManager.setFileCache(filePath, fileHash, parsed);
     return parsed;
   }

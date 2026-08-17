@@ -147,7 +147,7 @@ describe('SqlProcessor', () => {
       expect(hashes.size).toBe(2);
       expect(hashes.get('file1.sql')).toBe('mocked_hash');
       expect(hashes.get('file2.sql')).toBe('mocked_hash');
-      expect(vscode.workspace.findFiles).toHaveBeenCalledWith('**/*.sql');
+      expect(vscode.workspace.findFiles).toHaveBeenCalledWith('**/*.sql', expect.any(String));
     });
   });
 

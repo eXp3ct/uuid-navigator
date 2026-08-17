@@ -16,9 +16,17 @@ const mockDocument = {
   }
 };
 
+const mockFileSystemWatcher = () => ({
+  onDidChange: jest.fn(),
+  onDidCreate: jest.fn(),
+  onDidDelete: jest.fn(),
+  dispose: jest.fn()
+});
+
 const mockWorkspace = {
   findFiles: jest.fn().mockResolvedValue([]),
   openTextDocument: jest.fn().mockResolvedValue(mockDocument),
+  createFileSystemWatcher: jest.fn().mockImplementation(mockFileSystemWatcher),
   fs: {
     readFile: jest.fn()
   }

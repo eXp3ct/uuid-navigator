@@ -12,6 +12,10 @@ export function isSqlFile(document: vscode.TextDocument): boolean {
   return document.languageId === 'sql' ||
     document.languageId === 'mssql' ||
     document.languageId === 'json' ||
+    document.languageId === 'yaml' ||
+    document.languageId === 'yml' ||
     document.fileName.endsWith('.json') ||
-    document.fileName.endsWith('.sql');
+    document.fileName.endsWith('.sql') ||
+    document.fileName.endsWith('.yaml') ||
+    document.fileName.endsWith('.yml');
 }

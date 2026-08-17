@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import { getConfig } from './settings';
 import { ExtensionConfig } from './models';
 import { getUuidRange } from './utils';
+import { ConfigFileRepository } from './configFileRepository';
+
+const repository = new ConfigFileRepository();
 
 let highlightDecorations: vscode.TextEditorDecorationType[] = [];
 
@@ -33,7 +36,7 @@ async function findUuidLocations(uuid: string) {
   clearHighlights();
   const config = getConfig();
   const locations: vscode.Location[] = [];
-  const files = await vscode.workspace.findFiles('**/*.sql');
+  const files = await repository.findFiles();
 
   const decorationType = createHighlightDecoration(config);
   highlightDecorations.push(decorationType);

@@ -11,7 +11,7 @@
   "changelog": "https://github.com/eXp3ct/uuid-navigator/blob/main/CHANGELOG.md",
   "icon": "images/icon.png",
   "license": "MIT",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -20,7 +20,9 @@
   ],
   "activationEvents": [
     "onLanguage:sql",
-    "onLanguage:mssql"
+    "onLanguage:mssql",
+    "onLanguage:json",
+    "onLanguage:yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -102,6 +104,14 @@
         "id": "json",
         "aliases": [
           "JSON"
+        ]
+      },
+      {
+        "id": "yaml",
+        "aliases": [
+          "yaml",
+          "yml",
+          "YAML"
         ]
       }
     ],
@@ -203,6 +213,18 @@
           "default": "b2d437bc-af8e-4d75-ac25-70f481251233",
           "description": "Status class uuid to ignore",
           "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+        },
+        "uuidNavigator.fuzzyClassMatching": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a folder name doesn't exactly match any class name/alias, try to find the closest class by fuzzy name matching"
+        },
+        "uuidNavigator.fuzzyClassMatchThreshold": {
+          "type": "number",
+          "default": 0.82,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Similarity threshold (0-1) for fuzzy class name matching. Higher is stricter"
         },
         "uuidNavigator.autoLinking": {
           "type": "boolean",
@@ -348,6 +370,7 @@
     "@types/lodash.debounce": "^4.0.9",
     "@types/marked": "^6.0.0",
     "jsonc-parser": "^3.3.1",
-    "lodash.debounce": "^4.0.8"
+    "lodash.debounce": "^4.0.8",
+    "yaml": "^2.9.0"
   }
 }

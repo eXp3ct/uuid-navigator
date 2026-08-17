@@ -25,7 +25,7 @@ module.exports = {
   // Важно: исключаем vscode и другие ненужные модули
   externals: [
     nodeExternals({
-      allowlist: ['jsonc-parser', 'lodash.debounce']
+      allowlist: ['jsonc-parser', 'lodash.debounce', 'yaml']
     }),
     {
       vscode: 'commonjs vscode',

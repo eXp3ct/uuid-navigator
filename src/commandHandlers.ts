@@ -8,6 +8,7 @@ import { BlameProvider } from './blameProvider';
 import { AliasService } from './aliasService';
 import { ClassInfo, PropertyInfo, ObjectInfo } from './models';
 import { SqlProcessor } from './sqlProcessor';
+import { ConfigFileRepository } from './configFileRepository';
 
 type CommandDependencies = {
   sqlProcessor: SqlProcessor;
@@ -116,20 +117,27 @@ export function setupFileWatchers(
   blameProvider: BlameProvider
 ) {
   // Общая функция создания вотчеров
-  const createFileWatcher = (callback: () => Promise<void>) => {
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.sql');
+  const repository = new ConfigFileRepository();
+  const guard = (fn: (uri: vscode.Uri) => void) => (uri: vscode.Uri) => {
+    if (repository.isExcludedPath(uri.fsPath)) { return; }
+    fn(uri);
+  };
+
+  const createFileWatchers = (callback: () => Promise<void>) => {
+    const watchers = repository.createWatchers(context);
     const debouncedRefresh = debounce(callback, 500);
 
-    watcher.onDidChange(uri => sqlProcessor.invalidateCacheForFile(uri.fsPath));
-    watcher.onDidCreate(() => sqlProcessor.invalidateCache());
-    watcher.onDidDelete(() => sqlProcessor.invalidateCache());
+    watchers.forEach(watcher => {
+      watcher.onDidChange(guard(uri => sqlProcessor.invalidateCacheForFile(uri.fsPath)));
+      watcher.onDidCreate(guard(() => sqlProcessor.invalidateCache()));
+      watcher.onDidDelete(guard(() => sqlProcessor.invalidateCache()));
 
-    [watcher.onDidChange, watcher.onDidCreate, watcher.onDidDelete].forEach(
-      event => event(() => debouncedRefresh())
-    );
+      [watcher.onDidChange, watcher.onDidCreate, watcher.onDidDelete].forEach(
+        event => event(guard(() => debouncedRefresh()))
+      );
+    });
 
-    context.subscriptions.push(watcher);
-    return watcher;
+    return watchers;
   };
 
   // Валидация документов
@@ -149,13 +157,13 @@ export function setupFileWatchers(
   );
 
   // Вотчер для TreeView
-  createFileWatcher(async () => {
+  createFileWatchers(async () => {
     const { classes, objects } = await sqlProcessor.parseAllSqlFiles();
     explorerProvider.refresh(classes, objects);
   });
 
   // Вотчер для BlameProvider
-  createFileWatcher(async () => {
+  createFileWatchers(async () => {
     const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles();
     await blameProvider.refresh(classes, properties, objects, roles );
   });
