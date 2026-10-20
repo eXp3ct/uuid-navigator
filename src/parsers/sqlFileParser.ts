@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
 import { ParsedFile } from '../models';
+import { PositionLookup } from '../positionLookup';
 import { SqlParser } from '../sqlParser';
 import { ConfigFileParser } from './configParser';
 
@@ -16,7 +16,7 @@ export class SqlFileParser implements ConfigFileParser {
     return filePath.endsWith('.sql');
   }
 
-  public parseFile(filePath: string, content: string, document: vscode.TextDocument): ParsedFile {
+  public parseFile(filePath: string, content: string, document: PositionLookup): ParsedFile {
     const normalized = this.parser.normalizeSql(content);
     const inserts = this.parser.extractInserts(normalized);
 

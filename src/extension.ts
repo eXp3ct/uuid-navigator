@@ -35,9 +35,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		sqlProcessor,
 		sqlValidator,
 		explorerProvider,
-		classes,
-		properties,
-		objects,
 		treeView,
 		blameProvider,
 		aliasService

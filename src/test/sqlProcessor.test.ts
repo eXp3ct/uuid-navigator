@@ -1,300 +1,328 @@
 import * as vscode from 'vscode';
-import * as crypto from 'crypto';
 import { SqlProcessor } from '../sqlProcessor';
 import { AliasService } from '../aliasService';
-import { SqlParser } from '../sqlParser';
-import { ModelLinker } from '../modelLinker';
 import { CacheManager } from '../cacheManager';
-import { ClassInfo, PropertyInfo, ObjectInfo, ParsedFile, RoleInfo } from '../models';
+import { ModelLinker } from '../modelLinker';
+import { SqlFileParser } from '../parsers/sqlFileParser';
+import { StructuredConfigParser } from '../parsers/structuredConfigParser';
 
 jest.mock('vscode');
-jest.mock('crypto');
-jest.mock('../sqlParser');
-jest.mock('../modelLinker');
-jest.mock('../cacheManager');
-jest.mock('../aliasService', () => {
-  return {
-    AliasService: jest.fn().mockImplementation(() => ({
-      onAliasesChanged: jest.fn()
-    }))
-  };
-});
-describe('SqlProcessor', () => {
-  let sqlProcessor: SqlProcessor;
-  let mockAliasService: jest.Mocked<AliasService>;
-  let mockParser: jest.Mocked<SqlParser>;
-  let mockLinker: jest.Mocked<ModelLinker>;
-  let mockCacheManager: jest.Mocked<CacheManager>;
-  let mockContext: vscode.ExtensionContext;
 
-  const mockFileHashes = new Map<string, string>([
-    ['file1.sql', 'hash1'],
-    ['file2.sql', 'hash2']
-  ]);
+const CLASS_ID = '10000000-0000-4000-8000-000000000001';
+const OBJECT_ID = '10000000-0000-4000-8000-000000000002';
 
-  const sampleParsedData = {
-    classes: [{ id: 'cls1', name: 'Class1' }] as ClassInfo[],
-    properties: [{ id: 'prop1', name: 'Property1' }] as PropertyInfo[],
-    objects: [{ id: 'obj1', name: 'Object1' }] as ObjectInfo[],
-    roles: [{id: 'role1', name: 'Role1'}] as RoleInfo[]
+function sqlClass(id: string, name: string): string {
+  return `INSERT INTO classes (id, name, description, type) VALUES ('${id}', '${name}', 'sql description', 2);\n`;
+}
+
+function yamlClass(id: string, name: string): string {
+  return `id: ${id}\nname: ${name}\ndescription: yaml description\n`;
+}
+
+function globToRegExp(glob: string): RegExp {
+  const source = glob
+    .replace(/[.+^$()|[\]\\]/g, '\\$&')
+    .replace(/\{([^}]+)\}/g, (_, alternatives: string) => `(?:${alternatives.split(',').join('|')})`)
+    .replace(/\*\*\//g, '\u0000')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\u0000/g, '(?:.*/)?');
+  return new RegExp(`^${source}$`, 'i');
+}
+
+/** Сколько мс «читается» файл: чем раньше в списке findFiles, тем дольше — чтобы порядок завершения IO был обратным. */
+const READ_DELAY_STEP_MS = 3;
+
+describe('SqlProcessor.parseAllSqlFiles', () => {
+  let files: Map<string, string>;
+  let findOrder: string[];
+  let aliasChanged: () => void;
+  let linker: jest.Mocked<Pick<ModelLinker, 'linkClassesAndProperties' | 'linkClassesAndObjects' | 'sortModel'>>;
+  let processor: SqlProcessor;
+  /** Пути файлов, которые реально ушли в парсеры (а не взяты из кеша). */
+  const parsedPaths: string[] = [];
+
+  const workspace = vscode.workspace as unknown as {
+    findFiles: jest.Mock;
+    fs: { readFile: jest.Mock };
   };
+
+  function setFiles(entries: Record<string, string>): void {
+    files = new Map(Object.entries(entries));
+    findOrder = [...files.keys()];
+  }
 
   beforeEach(() => {
-    // Инициализируем мок ExtensionContext
-    mockContext = {
-      subscriptions: [],
-      globalState: {
-        get: jest.fn(),
-        update: jest.fn(),
-        setKeysForSync: jest.fn()
-      },
-      workspaceState: {
-        get: jest.fn(),
-        update: jest.fn()
-      },
-      extensionPath: '',
-      asAbsolutePath: jest.fn(),
-    } as unknown as vscode.ExtensionContext;
+    files = new Map();
+    findOrder = [];
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    // Явно создаём мок AliasService с методом onAliasesChanged
-    mockAliasService = {
-      onAliasesChanged: jest.fn(),
-    } as unknown as jest.Mocked<AliasService>;
-
-    mockParser = new SqlParser() as jest.Mocked<SqlParser>;
-    mockLinker = new ModelLinker(mockAliasService) as jest.Mocked<ModelLinker>;
-    mockCacheManager = new CacheManager() as jest.Mocked<CacheManager>;
-
-    // Создаём экземпляр SqlProcessor с нашими моками
-    sqlProcessor = new SqlProcessor(mockAliasService, mockParser, mockLinker, mockCacheManager);
-
-    // Настройка моков vscode
-    (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([
-      { fsPath: 'file1.sql' },
-      { fsPath: 'file2.sql' }
-    ]);
-
-    (vscode.workspace.openTextDocument as jest.Mock).mockResolvedValue({
-      getText: jest.fn().mockReturnValue('sql content'),
-      uri: { fsPath: 'test.sql' }
+    workspace.findFiles.mockImplementation(async (pattern: string) => {
+      const regex = globToRegExp(pattern);
+      return findOrder.filter(p => regex.test(p)).map(p => ({ fsPath: p }));
     });
-
-    (vscode.workspace.fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('file content'));
-
-    // Мок для crypto
-    (crypto.createHash as jest.Mock).mockReturnValue({
-      update: jest.fn().mockReturnThis(),
-      digest: jest.fn().mockReturnValue('mocked_hash')
+    workspace.fs.readFile.mockImplementation(async (uri: { fsPath: string }) => {
+      const delay = Math.max(0, (findOrder.length - findOrder.indexOf(uri.fsPath)) * READ_DELAY_STEP_MS);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      const content = files.get(uri.fsPath);
+      if (content === undefined) { throw new Error(`ENOENT ${uri.fsPath}`); }
+      return Buffer.from(content);
     });
+    parsedPaths.length = 0;
+    for (const parser of [SqlFileParser.prototype, StructuredConfigParser.prototype]) {
+      const original = parser.parseFile;
+      jest.spyOn(parser, 'parseFile').mockImplementation(function (this: unknown, filePath, content, document) {
+        parsedPaths.push(filePath);
+        return original.call(this, filePath, content, document);
+      });
+    }
+
+    linker = {
+      linkClassesAndProperties: jest.fn(),
+      linkClassesAndObjects: jest.fn(),
+      sortModel: jest.fn((classes, properties, objects, roles) => ({ classes, properties, objects, roles }))
+    };
+    const aliasService = {
+      onAliasesChanged: jest.fn((callback: () => void) => { aliasChanged = callback; })
+    } as unknown as AliasService;
+
+    processor = new SqlProcessor(
+      aliasService,
+      undefined,
+      linker as unknown as ModelLinker,
+      new CacheManager()
+    );
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
-  describe('parseAllSqlFiles', () => {
-    it('should return cached data when cache is valid', async () => {
-      mockCacheManager.isCacheValid.mockReturnValue(true);
-      mockCacheManager.getCacheData.mockReturnValue(sampleParsedData);
+  describe('dispatch to parsers', () => {
+    it('parses sql, class and object files and ignores everything else', async () => {
+      setFiles({
+        '/ws/a/1. Class.sql': sqlClass(CLASS_ID, 'SqlClass'),
+        '/ws/b/Thing.class.yaml': yamlClass('20000000-0000-4000-8000-000000000001', 'YamlClass'),
+        '/ws/b/Thing.object.yaml': `- id: ${OBJECT_ID}\n  classId: 20000000-0000-4000-8000-000000000001\n  name: Obj\n`,
+        '/ws/b/Roles.role.json': JSON.stringify({ id: 'g', name: 'G', roles: [{ id: 'r1', name: 'Role' }] }),
+        '/ws/b/Thing.class.yml': yamlClass('30000000-0000-4000-8000-000000000001', 'Ignored'),
+        '/ws/b/readme.md': '# nothing'
+      });
 
-      const result = await sqlProcessor.parseAllSqlFiles();
+      const result = await processor.parseAllSqlFiles();
 
-      expect(result).toEqual(sampleParsedData);
-      expect(mockCacheManager.isCacheValid).toHaveBeenCalled();
-      expect(mockCacheManager.getCacheData).toHaveBeenCalled();
+      expect(result.classes.map(c => c.name).sort()).toEqual(['SqlClass', 'YamlClass']);
+      expect(result.objects.map(o => o.id)).toEqual([OBJECT_ID]);
+      expect(result.roles.map(r => r.id)).toEqual(['r1']);
+      expect(parsedPaths).toHaveLength(4);
     });
 
-    it('should parse files and update cache when cache is invalid', async () => {
-      mockCacheManager.isCacheValid.mockReturnValue(false);
-      (sqlProcessor as any).parseFiles = jest.fn().mockResolvedValue(sampleParsedData);
+    it('passes position and line numbers of the original text for yaml entities', async () => {
+      const content = `\n\nid: ${CLASS_ID}\nname: Positioned\n`;
+      setFiles({ '/ws/Positioned.class.yaml': content });
 
-      const result = await sqlProcessor.parseAllSqlFiles();
+      const { classes } = await processor.parseAllSqlFiles();
 
-      expect(result).toEqual(sampleParsedData);
-      expect(mockCacheManager.setCache).toHaveBeenCalledWith(sampleParsedData, expect.any(Map));
+      expect(classes[0]).toMatchObject({ position: content.indexOf(CLASS_ID), lineNumber: 3 });
     });
 
-    it('should force refresh when requested', async () => {
-      (sqlProcessor as any).parseFiles = jest.fn().mockResolvedValue(sampleParsedData);
+    it('links and sorts the merged model through the linker', async () => {
+      setFiles({ '/ws/Class.sql': sqlClass(CLASS_ID, 'C') });
 
-      const result = await sqlProcessor.parseAllSqlFiles(true);
+      await processor.parseAllSqlFiles();
 
-      expect(result).toEqual(sampleParsedData);
-      expect(mockCacheManager.isCacheValid).not.toHaveBeenCalled();
-      expect(mockCacheManager.setCache).toHaveBeenCalled();
-    });
-  });
-
-  describe('invalidateCache', () => {
-    it('should call cacheManager.invalidateCache', () => {
-      sqlProcessor.invalidateCache();
-      expect(mockCacheManager.invalidateCache).toHaveBeenCalled();
-    });
-  });
-
-  describe('invalidateCacheForFile', () => {
-    it('should call cacheManager.invalidateFileCache', () => {
-      const filePath = 'test.sql';
-      sqlProcessor.invalidateCacheForFile(filePath);
-      expect(mockCacheManager.invalidateFileCache).toHaveBeenCalledWith(filePath);
+      expect(linker.linkClassesAndProperties).toHaveBeenCalledTimes(1);
+      expect(linker.linkClassesAndObjects).toHaveBeenCalledTimes(1);
+      expect(linker.sortModel).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('getFileHashes', () => {
-    it('should return correct file hashes', async () => {
-      const hashes = await (sqlProcessor as any).getFileHashes();
+  describe('deterministic order and duplicate ids', () => {
+    it('lets yaml win over sql for the same id regardless of discovery order and IO timing', async () => {
+      const sqlFirst = {
+        '/ws/A/Class.sql': sqlClass(CLASS_ID, 'FromSql'),
+        '/ws/Z/Class.class.yaml': yamlClass(CLASS_ID, 'FromYaml')
+      };
+      setFiles(sqlFirst);
+      const first = await processor.parseAllSqlFiles();
 
-      expect(hashes.size).toBe(2);
-      expect(hashes.get('file1.sql')).toBe('mocked_hash');
-      expect(hashes.get('file2.sql')).toBe('mocked_hash');
-      expect(vscode.workspace.findFiles).toHaveBeenCalledWith('**/*.sql', expect.any(String));
+      setFiles({
+        '/ws/Z/Class.class.yaml': sqlFirst['/ws/Z/Class.class.yaml'],
+        '/ws/A/Class.sql': sqlFirst['/ws/A/Class.sql']
+      });
+      processor.invalidateCache();
+      const second = await processor.parseAllSqlFiles();
+
+      expect(first.classes).toHaveLength(1);
+      expect(first.classes[0].name).toBe('FromYaml');
+      expect(second.classes[0].name).toBe('FromYaml');
     });
-  });
 
-  describe('parseFiles', () => {
-    it('should process all files and link models', async () => {
-      const mockParsedFile: ParsedFile = {
-        classes: [{
-          id: 'cls1', name: 'Class1',
-          description: '',
-          classType: 0,
-          properties: [],
-          objects: []
-        }],
-        properties: [{
-          id: 'prop1', name: 'Property1',
-          description: '',
-          dataType: 0
-        }],
-        links: [{ classId: 'cls1', propertyId: 'prop1' }],
-        objects: [{
-          id: 'obj1', name: 'Object1', classId: 'cls1',
-          description: '',
-          parentId: null
-        }],
-        roles: [
-          {
-            id: 'role1', name: "Role1", description: ''
-          }
-        ]
+    it('breaks ties inside the same group by path, independent of discovery order', async () => {
+      const entries: Record<string, string> = {
+        '/ws/b/Dup.class.yaml': yamlClass(CLASS_ID, 'FromB'),
+        '/ws/a/Dup.class.yaml': yamlClass(CLASS_ID, 'FromA'),
+        '/ws/c/Dup.class.json': JSON.stringify({ id: CLASS_ID, name: 'FromC' })
       };
 
-      (sqlProcessor as any).parseFile = jest.fn().mockResolvedValue(mockParsedFile);
-      mockLinker.sortModel.mockReturnValue(sampleParsedData);
+      for (const order of [
+        ['/ws/b/Dup.class.yaml', '/ws/a/Dup.class.yaml', '/ws/c/Dup.class.json'],
+        ['/ws/c/Dup.class.json', '/ws/b/Dup.class.yaml', '/ws/a/Dup.class.yaml'],
+        ['/ws/a/Dup.class.yaml', '/ws/c/Dup.class.json', '/ws/b/Dup.class.yaml']
+      ]) {
+        files = new Map(order.map(p => [p, entries[p]]));
+        findOrder = order;
+        processor.invalidateCache();
 
-      const result = await (sqlProcessor as any).parseFiles(mockFileHashes);
+        const { classes } = await processor.parseAllSqlFiles();
 
-      expect(result).toEqual(sampleParsedData);
-      expect((sqlProcessor as any).parseFile).toHaveBeenCalledTimes(2);
-      expect(mockLinker.linkClassesAndProperties).toHaveBeenCalled();
-      expect(mockLinker.linkClassesAndObjects).toHaveBeenCalled();
-      expect(mockLinker.sortModel).toHaveBeenCalled();
+        expect(classes.map(c => c.name)).toEqual(['FromA']);
+      }
+    });
+
+    it('parses files in a stable order: yaml/json first, then sql, each by path', async () => {
+      setFiles({
+        '/ws/z/Late.sql': sqlClass('40000000-0000-4000-8000-000000000003', 'Sql-z'),
+        '/ws/m/Mid.class.json': JSON.stringify({ id: '40000000-0000-4000-8000-000000000002', name: 'Json-m' }),
+        '/ws/a/Early.sql': sqlClass('40000000-0000-4000-8000-000000000004', 'Sql-a'),
+        '/ws/k/Key.class.yaml': yamlClass('40000000-0000-4000-8000-000000000001', 'Yaml-k')
+      });
+
+      await processor.parseAllSqlFiles();
+
+      expect(parsedPaths).toEqual(['/ws/k/Key.class.yaml', '/ws/m/Mid.class.json', '/ws/a/Early.sql', '/ws/z/Late.sql']);
+      const [classes] = linker.sortModel.mock.calls[0];
+      expect(classes.map(c => c.name)).toEqual(['Yaml-k', 'Json-m', 'Sql-a', 'Sql-z']);
     });
   });
 
-  describe('parseFile', () => {
-    it('should return cached data if available', async () => {
-      const cachedData: ParsedFile = {
-        classes: [],
-        properties: [],
-        links: [],
-        objects: [],
-        roles: []
-      };
-
-      mockCacheManager.getFileCache.mockReturnValue({
-        hash: 'hash1',
-        parsed: cachedData
+  describe('caching', () => {
+    beforeEach(() => {
+      setFiles({
+        '/ws/One.class.yaml': yamlClass(CLASS_ID, 'One'),
+        '/ws/Two.sql': sqlClass('50000000-0000-4000-8000-000000000001', 'Two')
       });
-
-      const result = await (sqlProcessor as any).parseFile('file1.sql', 'hash1');
-
-      expect(result).toEqual(cachedData);
-      expect(mockParser.normalizeSql).not.toHaveBeenCalled();
     });
 
-    it('should parse file and cache results when no cache', async () => {
-      const mockInserts = [{
-        tableName: 'classes',
-        columns: ['id', 'name'],
-        values: [['cls1', 'Class1']],
-        positions: []
-      }];
+    it('returns the cached result when no file changed', async () => {
+      const first = await processor.parseAllSqlFiles();
+      parsedPaths.length = 0;
+      linker.sortModel.mockClear();
 
-      mockParser.normalizeSql.mockReturnValue('normalized sql');
-      mockParser.extractInserts.mockReturnValue(mockInserts);
-      mockParser.parseClass.mockReturnValue({
-        id: 'cls1', name: 'Class1',
-        description: '',
-        classType: 0,
-        properties: [],
-        objects: []
-      });
+      const second = await processor.parseAllSqlFiles();
 
-      const result = await (sqlProcessor as any).parseFile('file1.sql', 'hash1');
-
-      expect(result.classes).toHaveLength(1);
-      expect(mockParser.normalizeSql).toHaveBeenCalled();
-      expect(mockParser.extractInserts).toHaveBeenCalled();
-      expect(mockParser.parseClass).toHaveBeenCalled();
-      expect(mockCacheManager.setFileCache).toHaveBeenCalled();
+      expect(second).toEqual(first);
+      expect(parsedPaths).toEqual([]);
+      expect(linker.sortModel).not.toHaveBeenCalled();
     });
 
-    it('should handle different table types', async () => {
-      const mockInserts = [
-        {
-          tableName: 'classes',
-          columns: ['id', 'name'],
-          values: [['cls1', 'Class1']],
-          positions: []
-        },
-        {
-          tableName: 'property_definitions',
-          columns: ['id', 'name'],
-          values: [['prop1', 'Property1']],
-          positions: []
-        },
-        {
-          tableName: 'classes_property_definitions',
-          columns: ['class_id', 'property_id'],
-          values: [['cls1', 'prop1']],
-          positions: []
-        },
-        {
-          tableName: 'objects',
-          columns: ['id', 'name', 'class_id'],
-          values: [['obj1', 'Object1', 'cls1']],
-          positions: []
-        }
-      ];
+    it('re-links on forceRefresh but reuses per-file parse results for unchanged files', async () => {
+      await processor.parseAllSqlFiles();
+      parsedPaths.length = 0;
 
-      mockParser.normalizeSql.mockReturnValue('normalized sql');
-      mockParser.extractInserts.mockReturnValue(mockInserts);
-      mockParser.parseClass.mockReturnValue({
-        id: 'cls1', name: 'Class1',
-        description: '',
-        classType: 0,
-        properties: [],
-        objects: []
+      await processor.parseAllSqlFiles(true);
+
+      expect(linker.sortModel).toHaveBeenCalledTimes(2);
+      expect(parsedPaths).toEqual([]);
+    });
+
+    it('re-parses only the changed file when content changes', async () => {
+      await processor.parseAllSqlFiles();
+      parsedPaths.length = 0;
+      files.set('/ws/One.class.yaml', yamlClass(CLASS_ID, 'OneRenamed'));
+
+      const { classes } = await processor.parseAllSqlFiles();
+
+      expect(classes.map(c => c.name).sort()).toEqual(['OneRenamed', 'Two']);
+      expect(parsedPaths).toEqual(['/ws/One.class.yaml']);
+    });
+
+    it('picks up added and removed files', async () => {
+      await processor.parseAllSqlFiles();
+
+      files.set('/ws/Three.class.json', JSON.stringify({ id: '50000000-0000-4000-8000-000000000002', name: 'Three' }));
+      findOrder.push('/ws/Three.class.json');
+      expect((await processor.parseAllSqlFiles()).classes.map(c => c.name).sort()).toEqual(['One', 'Three', 'Two']);
+
+      files.delete('/ws/Two.sql');
+      findOrder = findOrder.filter(p => p !== '/ws/Two.sql');
+      expect((await processor.parseAllSqlFiles()).classes.map(c => c.name).sort()).toEqual(['One', 'Three']);
+    });
+
+    it('invalidateCache drops per-file results too', async () => {
+      await processor.parseAllSqlFiles();
+      parsedPaths.length = 0;
+
+      processor.invalidateCache();
+      await processor.parseAllSqlFiles();
+
+      expect(parsedPaths).toHaveLength(2);
+    });
+
+    it('invalidateCacheForFile re-parses just that file', async () => {
+      await processor.parseAllSqlFiles();
+      parsedPaths.length = 0;
+
+      processor.invalidateCacheForFile('/ws/Two.sql');
+      await processor.parseAllSqlFiles();
+
+      expect(parsedPaths).toEqual(['/ws/Two.sql']);
+    });
+
+    it('re-links without re-parsing files when class aliases change', async () => {
+      await processor.parseAllSqlFiles();
+      parsedPaths.length = 0;
+      linker.sortModel.mockClear();
+
+      aliasChanged();
+      await processor.parseAllSqlFiles();
+
+      expect(linker.sortModel).toHaveBeenCalledTimes(1);
+      expect(parsedPaths).toEqual([]);
+    });
+  });
+
+  describe('error tolerance', () => {
+    it('skips files that cannot be read', async () => {
+      setFiles({
+        '/ws/Good.class.yaml': yamlClass(CLASS_ID, 'Good'),
+        '/ws/Gone.class.yaml': yamlClass('60000000-0000-4000-8000-000000000001', 'Gone')
       });
-      mockParser.parseProperty.mockReturnValue({
-        id: 'prop1', name: 'Property1',
-        description: '',
-        dataType: 0
+      files.delete('/ws/Gone.class.yaml');
+
+      const { classes } = await processor.parseAllSqlFiles();
+
+      expect(classes.map(c => c.name)).toEqual(['Good']);
+      expect(console.error).toHaveBeenCalled();
+    });
+
+    it('keeps going when parsing one file fails', async () => {
+      setFiles({
+        '/ws/A.class.yaml': yamlClass('70000000-0000-4000-8000-000000000001', 'A'),
+        '/ws/B.class.yaml': yamlClass('70000000-0000-4000-8000-000000000002', 'B')
       });
-      mockParser.parseLink.mockReturnValue({ classId: 'cls1', propertyId: 'prop1' });
-      mockParser.parseObject.mockReturnValue({
-        id: 'obj1', name: 'Object1', classId: 'cls1',
-        description: '',
-        parentId: null
+      const spy = StructuredConfigParser.prototype.parseFile as jest.Mock;
+      const passThrough = spy.getMockImplementation()!;
+      spy.mockImplementation(function (this: unknown, filePath: string, content: string, document: unknown) {
+        if (filePath.endsWith('A.class.yaml')) { throw new Error('boom'); }
+        return passThrough.call(this, filePath, content, document);
       });
 
-      const result = await (sqlProcessor as any).parseFile('file1.sql', 'hash1');
+      const { classes } = await processor.parseAllSqlFiles();
 
-      expect(result.classes).toHaveLength(1);
-      expect(result.properties).toHaveLength(1);
-      expect(result.links).toHaveLength(1);
-      expect(result.objects).toHaveLength(1);
+      expect(classes.map(c => c.name)).toEqual(['B']);
+    });
+
+    it('does not fail on malformed yaml among valid files', async () => {
+      setFiles({
+        '/ws/Bad.object.yaml': 'id: [oops',
+        '/ws/Ok.class.yaml': yamlClass(CLASS_ID, 'Ok')
+      });
+
+      const { classes, objects } = await processor.parseAllSqlFiles();
+
+      expect(classes.map(c => c.name)).toEqual(['Ok']);
+      expect(objects).toEqual([]);
     });
   });
 });

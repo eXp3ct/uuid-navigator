@@ -1,0 +1,13 @@
+id: dddddddd-7777-4777-8777-000000000001
+name: Группа ролей
+parentId: null
+depth: 0
+roles:
+  - id: dddddddd-7777-4777-8777-000000000002
+    name: Оператор
+    description: Работает с заявками
+    priority: 10
+    tabs: []
+  - id: dddddddd-7777-4777-8777-000000000003
+    name: Наблюдатель
+    priority: 20

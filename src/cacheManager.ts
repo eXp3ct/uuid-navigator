@@ -51,6 +51,18 @@ export class CacheManager {
     this.fileCache.clear();
   }
 
+  /** Сбрасывает только собранную модель; результаты парсинга файлов остаются. */
+  public invalidateModel() {
+    this.cache = null;
+  }
+
+  /** Забывает результаты парсинга файлов, которых больше нет в рабочей области. */
+  public retainFiles(filePaths: Set<string>) {
+    for (const filePath of this.fileCache.keys()) {
+      if (!filePaths.has(filePath)) { this.fileCache.delete(filePath); }
+    }
+  }
+
   public invalidateFileCache(filePath: string) {
     this.fileCache.delete(filePath);
     if (this.cache) {

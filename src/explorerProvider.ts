@@ -7,9 +7,10 @@ export class ExplorerProvider implements vscode.TreeDataProvider<ExplorerItem> {
 
   constructor(private classes: ClassInfo[], private objects: ObjectInfo[], private roles: RoleInfo[]) { }
 
-  refresh(classes: ClassInfo[], objects: ObjectInfo[]): void {
+  refresh(classes: ClassInfo[], objects: ObjectInfo[], roles: RoleInfo[]): void {
     this.classes = classes;
     this.objects = objects;
+    this.roles = roles;
     this._onDidChangeTreeData.fire(undefined);
   }
 
