@@ -1,0 +1,126 @@
+name: Release
+
+# Выпуск после слияния PR в main (или вручную). Версию руками поднимать не нужно:
+# scripts/release.js берёт опубликованную в Marketplace версию и поднимает её
+# (auto: minor, если в `## [Unreleased]` есть `### Added`, иначе patch).
+# Переопределить: лейбл PR `release:major` / `release:minor` / `release:patch`,
+# пропустить выпуск: лейбл `release:skip` или `[skip publish]` в заголовке PR.
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Какую часть версии поднять (auto — по CHANGELOG)"
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       !contains(github.event.pull_request.title, '[skip publish]') &&
+       !contains(github.event.pull_request.labels.*.name, 'release:skip'))
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          # PAT, чтобы запушить коммит с версией и тег в main/dev
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn unit-test
+
+      - name: Resolve bump
+        id: bump
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          bump="${INPUT_BUMP:-auto}"
+          for level in major minor patch; do
+            if [[ "$LABELS" == *"\"release:$level\""* ]]; then bump="$level"; break; fi
+          done
+          echo "value=$bump" >> "$GITHUB_OUTPUT"
+
+      - name: Published version
+        id: published
+        run: |
+          id=$(node -p "const p = require('./package.json'); p.publisher + '.' + p.name")
+          version=$(npx vsce show "$id" --json 2>/dev/null \
+            | node -e "let s = ''; process.stdin.on('data', d => s += d).on('end', () => { try { console.log(JSON.parse(s).versions[0].version); } catch { console.log(''); } })")
+          echo "Marketplace: ${version:-not found}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare version and changelog
+        id: version
+        env:
+          BUMP: ${{ steps.bump.outputs.value }}
+          PUBLISHED_VERSION: ${{ steps.published.outputs.version }}
+          RELEASE_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/release.js
+
+      # vscode:prepublish -> compile: сборка и обновление версии в README
+      - name: Package
+        run: yarn package
+
+      - name: Publish to Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npx vsce publish --packagePath "uuid-navigator-$VERSION.vsix" -p "$VSCE_PAT"
+
+      - name: Commit version and tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md README.md
+          git diff --cached --quiet || git commit -m "[-] Версия $VERSION [skip ci]"
+          git tag "v$VERSION"
+          git push origin HEAD:main "v$VERSION"
+
+      - name: GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.ACCESS_TOKEN }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          files: uuid-navigator-${{ steps.version.outputs.version }}.vsix
+
+      # Чтобы следующий PR dev -> main не конфликтовал по package.json/CHANGELOG
+      - name: Sync dev with main
+        run: |
+          if ! git ls-remote --exit-code --heads origin dev > /dev/null; then
+            echo "No dev branch, skipping"
+            exit 0
+          fi
+          git fetch origin dev
+          git checkout -B dev origin/dev
+          if ! git merge --no-edit main; then
+            echo "::error::dev не удалось автоматически слить с main — слейте main в dev вручную"
+            exit 1
+          fi
+          git push origin dev

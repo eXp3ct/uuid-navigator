@@ -172,5 +172,15 @@ yarn install
 
 4. Нажмите F5 в VS Code
 
+Нужен Node.js 20 (`.nvmrc`). Проверки локально: `yarn lint`, `yarn unit-test`, `yarn build`.
+
+### Релизы
+Версию и CHANGELOG руками поднимать не нужно. Изменения пишутся в секцию `## [Unreleased]` в `CHANGELOG.md`, а после слияния PR в `main` workflow **Release**:
+- поднимает версию от опубликованной в Marketplace: `minor`, если в `[Unreleased]` есть `### Added`, иначе `patch` (версия, уже поднятая руками в `package.json`, сохраняется);
+- переименовывает `[Unreleased]` в выпускаемую версию, публикует расширение, ставит тег и создаёт GitHub Release с заметками только этой версии;
+- коммитит версию в `main` и подтягивает `main` в `dev`.
+
+Переопределить уровень — лейблы PR `release:major` / `release:minor` / `release:patch`; не выпускать — лейбл `release:skip` или `[skip publish]` в заголовке PR. Выпустить вручную — **Actions → Release → Run workflow**.
+
 📜 Лицензия
 [MIT](LICENSE) 
