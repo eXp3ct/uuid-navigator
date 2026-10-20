@@ -182,5 +182,7 @@ yarn install
 
 Переопределить уровень — лейблы PR `release:major` / `release:minor` / `release:patch`; не выпускать — лейбл `release:skip` или `[skip publish]` в заголовке PR. Выпустить вручную — **Actions → Release → Run workflow**.
 
+Секреты: обязателен `VSCE_TOKEN` (токен Marketplace). `ACCESS_TOKEN` (PAT) нужен только если `main` защищён от прямых пушей — иначе используется встроенный `GITHUB_TOKEN`.
+
 📜 Лицензия
 [MIT](LICENSE) 

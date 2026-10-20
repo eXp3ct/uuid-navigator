@@ -35,12 +35,24 @@ jobs:
     environment: production
 
     steps:
+      # Падаем сразу, до каких-либо изменений, если публиковать нечем
+      - name: Check secrets
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::Секрет VSCE_TOKEN не задан (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-          # PAT, чтобы запушить коммит с версией и тег в main/dev
-          token: ${{ secrets.ACCESS_TOKEN }}
+          # ACCESS_TOKEN (PAT) нужен только если main защищён от прямых пушей;
+          # без него хватает GITHUB_TOKEN с permissions: contents: write.
+          # Пустой token ломает checkout ("could not read Username"), поэтому фолбэк.
+          token: ${{ secrets.ACCESS_TOKEN || github.token }}
 
       - uses: actions/setup-node@v4
         with:
@@ -104,7 +116,7 @@ jobs:
       - name: GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.ACCESS_TOKEN }}
+          token: ${{ secrets.ACCESS_TOKEN || github.token }}
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           body_path: RELEASE_NOTES.md
