@@ -1,0 +1,18 @@
+-
+  id: 11111111-aaaa-4aaa-8aaa-000000000001
+  classId: 22222222-bbbb-4bbb-8bbb-000000000002
+  name: Создан
+  description: Элемент создан
+-
+  id: 11111111-aaaa-4aaa-8aaa-000000000003
+  classId: 22222222-bbbb-4bbb-8bbb-000000000002
+  name: В работе
+
+
+- id: 11111111-aaaa-4aaa-8aaa-000000000004
+  classId: 22222222-bbbb-4bbb-8bbb-000000000002
+  name: Вложенный
+  parentId: 11111111-aaaa-4aaa-8aaa-000000000003
+  properties:
+    33333333-cccc-4ccc-8ccc-000000000005: value
+    someAlias: 42

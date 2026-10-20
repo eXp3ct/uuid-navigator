@@ -1,16 +1,6 @@
-const mockPosition = {
-  line: 0,
-  character: 0
-};
-
-const mockRange = {
-  start: mockPosition,
-  end: mockPosition
-};
-
 const mockDocument = {
   getText: jest.fn(),
-  positionAt: jest.fn().mockReturnValue(mockPosition),
+  positionAt: jest.fn().mockImplementation(() => new Position(0, 0)),
   uri: {
     fsPath: '/test/path.sql'
   }
@@ -36,8 +26,14 @@ const mockUri = {
   file: jest.fn().mockImplementation(path => ({ fsPath: path }))
 };
 
-export const Position = jest.fn().mockImplementation(() => mockPosition);
-export const Range = jest.fn().mockImplementation(() => mockRange);
+export class Position {
+  constructor(public readonly line: number, public readonly character: number) {}
+}
+
+export class Range {
+  constructor(public readonly start: Position, public readonly end: Position) {}
+}
+
 export const workspace = mockWorkspace;
 export const Uri = mockUri;
 

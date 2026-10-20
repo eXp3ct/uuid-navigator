@@ -3,8 +3,10 @@ import { getConfig } from './settings';
 import { ExtensionConfig } from './models';
 import { getUuidRange } from './utils';
 import { ConfigFileRepository } from './configFileRepository';
+import { createPositionLookup, PositionLookup } from './positionLookup';
 
 const repository = new ConfigFileRepository();
+const utf8 = new TextDecoder('utf-8');
 
 let highlightDecorations: vscode.TextEditorDecorationType[] = [];
 
@@ -12,7 +14,7 @@ export function registerNavigationCommands(context: vscode.ExtensionContext) {
   //TODO: убрать от сюда
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(
-      ['sql', 'mssql'],
+      ['sql', 'mssql', 'yaml', 'json'],
       { provideDefinition: findUuidReferences }
     ),
     vscode.commands.registerCommand('uuid-navigator.clearHighlights', clearHighlights)
@@ -41,14 +43,23 @@ async function findUuidLocations(uuid: string) {
   const decorationType = createHighlightDecoration(config);
   highlightDecorations.push(decorationType);
 
-  for (const file of files) {
-    const document = await vscode.workspace.openTextDocument(file);
-    const matches = findUuidMatches(document, uuid);
+  // Открытые документы берём из редактора (с несохранёнными правками), остальные читаем с диска:
+  // openTextDocument на сотни файлов дорогой и запускает обработчики onDidOpenTextDocument (валидатор)
+  const openDocuments = new Map(vscode.workspace.textDocuments.map(d => [d.uri.fsPath, d]));
 
-    matches.forEach(match => {
-      locations.push(new vscode.Location(file, match.range));
-    });
-  }
+  await Promise.all(files.map(async file => {
+    try {
+      const opened = openDocuments.get(file.fsPath);
+      const text = opened ? opened.getText() : utf8.decode(await vscode.workspace.fs.readFile(file));
+      const lookup = opened ?? createPositionLookup(text);
+
+      findUuidMatches(text, lookup, uuid).forEach(range => {
+        locations.push(new vscode.Location(file, range));
+      });
+    } catch (error) {
+      console.error(`Error searching UUID in ${file.fsPath}:`, error);
+    }
+  }));
 
   if (config.showNotifications && locations.length > 0) {
     vscode.window.showInformationMessage(
@@ -68,20 +79,17 @@ function createHighlightDecoration(config: ExtensionConfig) {
   });
 }
 
-function findUuidMatches(document: vscode.TextDocument, uuid: string) {
-  const text = document.getText();
+function findUuidMatches(text: string, lookup: PositionLookup, uuid: string): vscode.Range[] {
   const regex = new RegExp(`["']?${uuid}["']?`, 'gi');
-  const matches: { range: vscode.Range }[] = [];
+  const ranges: vscode.Range[] = [];
 
   let match;
   while ((match = regex.exec(text)) !== null) {
-    matches.push({
-      range: new vscode.Range(
-        document.positionAt(match.index),
-        document.positionAt(match.index + match[0].length)
-      )
-    });
+    ranges.push(new vscode.Range(
+      lookup.positionAt(match.index),
+      lookup.positionAt(match.index + match[0].length)
+    ));
   }
 
-  return matches;
+  return ranges;
 }

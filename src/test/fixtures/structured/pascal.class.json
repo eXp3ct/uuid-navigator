@@ -1,0 +1,15 @@
+{
+  "Id": "aaaaaaaa-4444-4444-8444-000000000001",
+  "Name": "Класс из JSON",
+  "Description": "PascalCase-ключи",
+  "Type": 0,
+  "Aliases": {},
+  "IsEnableV2": false,
+  "Definitions": {
+    "aaaaaaaa-4444-4444-8444-000000000002": {
+      "Name": "Поле",
+      "Description": "Строковое поле",
+      "Type": 0
+    }
+  }
+}

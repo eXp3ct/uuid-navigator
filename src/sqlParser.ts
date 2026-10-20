@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import { PositionLookup } from './positionLookup';
 import { ObjectInfo, ClassInfo, PropertyInfo, ClassPropertyLink, RoleInfo } from "./models";
 
 export class SqlParser {
@@ -221,7 +221,7 @@ export class SqlParser {
     insert: any,
     index: number,
     filePath: string,
-    document: vscode.TextDocument
+    document: PositionLookup
   ): ObjectInfo | null {
     const { columns, values, positions } = insert;
     const row = values[index];
@@ -252,7 +252,7 @@ export class SqlParser {
     insert: any,
     index: number,
     filePath: string,
-    document: vscode.TextDocument
+    document: PositionLookup
   ): ClassInfo | null {
     const { columns, values, positions } = insert;
     const row = values[index];
@@ -280,7 +280,7 @@ export class SqlParser {
     insert: any,
     index: number,
     filePath: string,
-    document: vscode.TextDocument
+    document: PositionLookup
   ): PropertyInfo | null {
     const { columns, values, positions } = insert;
     const row = values[index];
@@ -328,7 +328,7 @@ export class SqlParser {
     insert: any,
     index: number,
     filePath: string,
-    document: vscode.TextDocument
+    document: PositionLookup
   ): RoleInfo | null {
     const { columns, values, positions } = insert;
     const row = values[index];

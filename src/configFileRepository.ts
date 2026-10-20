@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 
+// .yml платформа не загружает, поэтому его не ищем
 const INCLUDE_PATTERNS = [
   '**/*.sql',
-  '**/*.class.{yaml,yml,json}',
-  '**/*.object.{yaml,yml,json}'
+  '**/*.class.{yaml,json}',
+  '**/*.object.{yaml,json}',
+  '**/*.role.{yaml,json}'
 ];
 
 const EXCLUDE_PATTERN = '**/{bin,obj,node_modules,.git}/**';
