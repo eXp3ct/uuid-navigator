@@ -15,3 +15,11 @@ node_modules/
 .github/
 ROADMAP.md
 build-readme.js
+.idea/**
+coverage/**
+scripts/**
+jest.config.js
+webpack.config.js
+.nvmrc
+package-lock.json
+RELEASE_NOTES.md
