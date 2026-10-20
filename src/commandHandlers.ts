@@ -108,29 +108,28 @@ export function setupFileWatchers(
   explorerProvider: ExplorerProvider,
   blameProvider: BlameProvider
 ) {
-  // Общая функция создания вотчеров
+  // Изменённые/новые/удалённые файлы SqlProcessor сам находит по хешам содержимого,
+  // поэтому вотчеру достаточно запустить одну пересборку для дерева и blame.
   const repository = new ConfigFileRepository();
-  const guard = (fn: (uri: vscode.Uri) => void) => (uri: vscode.Uri) => {
-    if (repository.isExcludedPath(uri.fsPath)) { return; }
-    fn(uri);
+  const refresh = debounce(async () => {
+    try {
+      const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles();
+      explorerProvider.refresh(classes, objects, roles);
+      await blameProvider.refresh(classes, properties, objects, roles);
+    } catch (error) {
+      console.error('Failed to refresh UUID model:', error);
+    }
+  }, 500);
+
+  const onFileEvent = (uri: vscode.Uri) => {
+    if (!repository.isExcludedPath(uri.fsPath)) { refresh(); }
   };
 
-  const createFileWatchers = (callback: () => Promise<void>) => {
-    const watchers = repository.createWatchers(context);
-    const debouncedRefresh = debounce(callback, 500);
-
-    watchers.forEach(watcher => {
-      watcher.onDidChange(guard(uri => sqlProcessor.invalidateCacheForFile(uri.fsPath)));
-      watcher.onDidCreate(guard(() => sqlProcessor.invalidateCache()));
-      watcher.onDidDelete(guard(() => sqlProcessor.invalidateCache()));
-
-      [watcher.onDidChange, watcher.onDidCreate, watcher.onDidDelete].forEach(
-        event => event(guard(() => debouncedRefresh()))
-      );
-    });
-
-    return watchers;
-  };
+  repository.createWatchers(context).forEach(watcher => {
+    watcher.onDidChange(onFileEvent);
+    watcher.onDidCreate(onFileEvent);
+    watcher.onDidDelete(onFileEvent);
+  });
 
   // Валидация документов
   const validateDocument = (document: vscode.TextDocument) => {
@@ -147,18 +146,6 @@ export function setupFileWatchers(
       sqlValidator.clearDiagnostics(doc.uri);
     })
   );
-
-  // Вотчер для TreeView
-  createFileWatchers(async () => {
-    const { classes, objects, roles } = await sqlProcessor.parseAllSqlFiles();
-    explorerProvider.refresh(classes, objects, roles);
-  });
-
-  // Вотчер для BlameProvider
-  createFileWatchers(async () => {
-    const { classes, properties, objects, roles } = await sqlProcessor.parseAllSqlFiles();
-    await blameProvider.refresh(classes, properties, objects, roles );
-  });
 }
 
 

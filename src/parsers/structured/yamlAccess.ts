@@ -1,9 +1,9 @@
-import * as vscode from 'vscode';
+import { PositionLookup } from '../../positionLookup';
 import { isMap, isScalar, Pair, YAMLMap } from 'yaml';
 
 export interface ParseContext {
   filePath: string;
-  document: vscode.TextDocument;
+  document: PositionLookup;
 }
 
 export interface Located {

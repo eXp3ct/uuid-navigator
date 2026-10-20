@@ -70,4 +70,30 @@ describe('CacheManager', () => {
       expect(cacheManager.getFileCache('file1.sql')).toBeUndefined();
     });
   });
+
+  describe('invalidateModel', () => {
+    it('drops the merged model but keeps per-file parse results', () => {
+      const parsed = { classes: [], properties: [], links: [], objects: [], roles: [] };
+      cacheManager.setCache(sampleData, new Map([['file1', 'hash1']]));
+      cacheManager.setFileCache('file1', 'hash1', parsed);
+
+      cacheManager.invalidateModel();
+
+      expect(cacheManager.getCacheData()).toBeUndefined();
+      expect(cacheManager.getFileCache('file1')?.parsed).toBe(parsed);
+    });
+  });
+
+  describe('retainFiles', () => {
+    it('forgets parse results of files that are gone', () => {
+      const parsed = { classes: [], properties: [], links: [], objects: [], roles: [] };
+      cacheManager.setFileCache('kept.sql', 'h1', parsed);
+      cacheManager.setFileCache('deleted.sql', 'h2', parsed);
+
+      cacheManager.retainFiles(new Set(['kept.sql']));
+
+      expect(cacheManager.getFileCache('kept.sql')).toBeDefined();
+      expect(cacheManager.getFileCache('deleted.sql')).toBeUndefined();
+    });
+  });
 });

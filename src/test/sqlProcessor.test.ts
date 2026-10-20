@@ -3,7 +3,8 @@ import { SqlProcessor } from '../sqlProcessor';
 import { AliasService } from '../aliasService';
 import { CacheManager } from '../cacheManager';
 import { ModelLinker } from '../modelLinker';
-import { createFakeDocument } from './helpers/fakeTextDocument';
+import { SqlFileParser } from '../parsers/sqlFileParser';
+import { StructuredConfigParser } from '../parsers/structuredConfigParser';
 
 jest.mock('vscode');
 
@@ -37,10 +38,11 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
   let aliasChanged: () => void;
   let linker: jest.Mocked<Pick<ModelLinker, 'linkClassesAndProperties' | 'linkClassesAndObjects' | 'sortModel'>>;
   let processor: SqlProcessor;
+  /** Пути файлов, которые реально ушли в парсеры (а не взяты из кеша). */
+  const parsedPaths: string[] = [];
 
   const workspace = vscode.workspace as unknown as {
     findFiles: jest.Mock;
-    openTextDocument: jest.Mock;
     fs: { readFile: jest.Mock };
   };
 
@@ -66,9 +68,14 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
       if (content === undefined) { throw new Error(`ENOENT ${uri.fsPath}`); }
       return Buffer.from(content);
     });
-    workspace.openTextDocument.mockImplementation(async (uri: { fsPath: string }) =>
-      createFakeDocument(files.get(uri.fsPath) ?? '', uri.fsPath));
-    workspace.openTextDocument.mockClear();
+    parsedPaths.length = 0;
+    for (const parser of [SqlFileParser.prototype, StructuredConfigParser.prototype]) {
+      const original = parser.parseFile;
+      jest.spyOn(parser, 'parseFile').mockImplementation(function (this: unknown, filePath, content, document) {
+        parsedPaths.push(filePath);
+        return original.call(this, filePath, content, document);
+      });
+    }
 
     linker = {
       linkClassesAndProperties: jest.fn(),
@@ -107,7 +114,7 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
       expect(result.classes.map(c => c.name).sort()).toEqual(['SqlClass', 'YamlClass']);
       expect(result.objects.map(o => o.id)).toEqual([OBJECT_ID]);
       expect(result.roles.map(r => r.id)).toEqual(['r1']);
-      expect(workspace.openTextDocument).toHaveBeenCalledTimes(4);
+      expect(parsedPaths).toHaveLength(4);
     });
 
     it('passes position and line numbers of the original text for yaml entities', async () => {
@@ -183,8 +190,7 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
 
       await processor.parseAllSqlFiles();
 
-      const opened = workspace.openTextDocument.mock.calls.map(([uri]) => uri.fsPath);
-      expect(opened).toEqual(['/ws/k/Key.class.yaml', '/ws/m/Mid.class.json', '/ws/a/Early.sql', '/ws/z/Late.sql']);
+      expect(parsedPaths).toEqual(['/ws/k/Key.class.yaml', '/ws/m/Mid.class.json', '/ws/a/Early.sql', '/ws/z/Late.sql']);
       const [classes] = linker.sortModel.mock.calls[0];
       expect(classes.map(c => c.name)).toEqual(['Yaml-k', 'Json-m', 'Sql-a', 'Sql-z']);
     });
@@ -200,36 +206,35 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
 
     it('returns the cached result when no file changed', async () => {
       const first = await processor.parseAllSqlFiles();
-      workspace.openTextDocument.mockClear();
+      parsedPaths.length = 0;
       linker.sortModel.mockClear();
 
       const second = await processor.parseAllSqlFiles();
 
       expect(second).toEqual(first);
-      expect(workspace.openTextDocument).not.toHaveBeenCalled();
+      expect(parsedPaths).toEqual([]);
       expect(linker.sortModel).not.toHaveBeenCalled();
     });
 
     it('re-links on forceRefresh but reuses per-file parse results for unchanged files', async () => {
       await processor.parseAllSqlFiles();
-      workspace.openTextDocument.mockClear();
+      parsedPaths.length = 0;
 
       await processor.parseAllSqlFiles(true);
 
       expect(linker.sortModel).toHaveBeenCalledTimes(2);
-      expect(workspace.openTextDocument).not.toHaveBeenCalled();
+      expect(parsedPaths).toEqual([]);
     });
 
     it('re-parses only the changed file when content changes', async () => {
       await processor.parseAllSqlFiles();
-      workspace.openTextDocument.mockClear();
+      parsedPaths.length = 0;
       files.set('/ws/One.class.yaml', yamlClass(CLASS_ID, 'OneRenamed'));
 
       const { classes } = await processor.parseAllSqlFiles();
 
       expect(classes.map(c => c.name).sort()).toEqual(['OneRenamed', 'Two']);
-      expect(workspace.openTextDocument).toHaveBeenCalledTimes(1);
-      expect(workspace.openTextDocument.mock.calls[0][0].fsPath).toBe('/ws/One.class.yaml');
+      expect(parsedPaths).toEqual(['/ws/One.class.yaml']);
     });
 
     it('picks up added and removed files', async () => {
@@ -246,33 +251,34 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
 
     it('invalidateCache drops per-file results too', async () => {
       await processor.parseAllSqlFiles();
-      workspace.openTextDocument.mockClear();
+      parsedPaths.length = 0;
 
       processor.invalidateCache();
       await processor.parseAllSqlFiles();
 
-      expect(workspace.openTextDocument).toHaveBeenCalledTimes(2);
+      expect(parsedPaths).toHaveLength(2);
     });
 
     it('invalidateCacheForFile re-parses just that file', async () => {
       await processor.parseAllSqlFiles();
-      workspace.openTextDocument.mockClear();
+      parsedPaths.length = 0;
 
       processor.invalidateCacheForFile('/ws/Two.sql');
       await processor.parseAllSqlFiles();
 
-      expect(workspace.openTextDocument).toHaveBeenCalledTimes(1);
-      expect(workspace.openTextDocument.mock.calls[0][0].fsPath).toBe('/ws/Two.sql');
+      expect(parsedPaths).toEqual(['/ws/Two.sql']);
     });
 
-    it('invalidates everything when class aliases change', async () => {
+    it('re-links without re-parsing files when class aliases change', async () => {
       await processor.parseAllSqlFiles();
-      workspace.openTextDocument.mockClear();
+      parsedPaths.length = 0;
+      linker.sortModel.mockClear();
 
       aliasChanged();
       await processor.parseAllSqlFiles();
 
-      expect(workspace.openTextDocument).toHaveBeenCalledTimes(2);
+      expect(linker.sortModel).toHaveBeenCalledTimes(1);
+      expect(parsedPaths).toEqual([]);
     });
   });
 
@@ -290,15 +296,16 @@ describe('SqlProcessor.parseAllSqlFiles', () => {
       expect(console.error).toHaveBeenCalled();
     });
 
-    it('keeps going when opening one file fails', async () => {
+    it('keeps going when parsing one file fails', async () => {
       setFiles({
         '/ws/A.class.yaml': yamlClass('70000000-0000-4000-8000-000000000001', 'A'),
         '/ws/B.class.yaml': yamlClass('70000000-0000-4000-8000-000000000002', 'B')
       });
-      const original = workspace.openTextDocument.getMockImplementation()!;
-      workspace.openTextDocument.mockImplementation(async (uri: { fsPath: string }) => {
-        if (uri.fsPath.endsWith('A.class.yaml')) { throw new Error('boom'); }
-        return original(uri);
+      const spy = StructuredConfigParser.prototype.parseFile as jest.Mock;
+      const passThrough = spy.getMockImplementation()!;
+      spy.mockImplementation(function (this: unknown, filePath: string, content: string, document: unknown) {
+        if (filePath.endsWith('A.class.yaml')) { throw new Error('boom'); }
+        return passThrough.call(this, filePath, content, document);
       });
 
       const { classes } = await processor.parseAllSqlFiles();

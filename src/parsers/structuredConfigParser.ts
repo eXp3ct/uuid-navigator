@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
 import { isMap, isSeq, parseDocument, YAMLMap } from 'yaml';
 import { ParsedFile } from '../models';
+import { PositionLookup } from '../positionLookup';
 import { ConfigFileParser } from './configParser';
 import { parseClassDocument } from './structured/classDocument';
 import { parseObjectDocument } from './structured/objectDocument';
@@ -26,7 +26,7 @@ export class StructuredConfigParser implements ConfigFileParser {
     return KIND_SUFFIX.test(filePath);
   }
 
-  public parseFile(filePath: string, content: string, document: vscode.TextDocument): ParsedFile {
+  public parseFile(filePath: string, content: string, document: PositionLookup): ParsedFile {
     const parsed = emptyParsedFile();
     const kind = KIND_SUFFIX.exec(filePath)?.[1].toLowerCase() as Kind | undefined;
     if (!kind) { return parsed; }
