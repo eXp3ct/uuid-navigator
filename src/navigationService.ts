@@ -12,7 +12,7 @@ export function registerNavigationCommands(context: vscode.ExtensionContext) {
   //TODO: убрать от сюда
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(
-      ['sql', 'mssql'],
+      ['sql', 'mssql', 'yaml', 'json'],
       { provideDefinition: findUuidReferences }
     ),
     vscode.commands.registerCommand('uuid-navigator.clearHighlights', clearHighlights)

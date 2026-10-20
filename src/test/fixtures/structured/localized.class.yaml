@@ -1,0 +1,33 @@
+id: 66666666-ffff-4fff-8fff-000000000001
+name:
+  ru-RU: Оборудование
+  en-US: Equipment
+description:
+  __default: Единицы оборудования
+type: 1
+isEnableV2: true
+aliases:
+  serialNumber: 77777777-1111-4111-8111-000000000002
+definitions:
+  77777777-1111-4111-8111-000000000003:
+    name: Модель
+    description: Модель оборудования
+    type: 0
+    order: 1
+  serialNumber:
+    name:
+      ru-RU: Серийный номер
+    type: 0
+    order: 2
+  77777777-1111-4111-8111-000000000004:
+    name: Владелец
+    type: 4
+    sourceClassId: 88888888-2222-4222-8222-000000000005
+    order: 3
+  77777777-1111-4111-8111-000000000006:
+    name: Без источника
+    type: 4
+    sourceClassId: 00000000-0000-0000-0000-000000000000
+  unknownAlias:
+    name: Потерянный
+    type: 0

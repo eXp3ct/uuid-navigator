@@ -8,7 +8,7 @@ import { CacheManager } from './cacheManager';
 import { ConfigFileRepository } from './configFileRepository';
 import { ConfigFileParser } from './parsers/configParser';
 import { SqlFileParser } from './parsers/sqlFileParser';
-import { YamlFileParser } from './parsers/yamlFileParser';
+import { StructuredConfigParser } from './parsers/structuredConfigParser';
 
 export class SqlProcessor {
   private readonly parsers: ConfigFileParser[];
@@ -20,7 +20,7 @@ export class SqlProcessor {
     private cacheManager: CacheManager = new CacheManager(),
     private repository: ConfigFileRepository = new ConfigFileRepository()
   ) {
-    this.parsers = [new SqlFileParser(this.parser), new YamlFileParser()];
+    this.parsers = [new SqlFileParser(this.parser), new StructuredConfigParser()];
 
     this.aliasService.onAliasesChanged(() => {
       this.cacheManager.invalidateCache();
@@ -57,20 +57,35 @@ export class SqlProcessor {
   }
 
   private async getFileHashes(): Promise<Map<string, string>> {
-    const files = await this.repository.findFiles();
-    const hashes = new Map<string, string>();
+    const files = this.sortFiles(await this.repository.findFiles());
 
-    await Promise.all(files.map(async file => {
+    const entries = await Promise.all(files.map(async file => {
       try {
         const content = await vscode.workspace.fs.readFile(file);
-        const hash = crypto.createHash('sha1').update(content).digest('hex');
-        hashes.set(file.fsPath, hash);
+        return [file.fsPath, crypto.createHash('sha1').update(content).digest('hex')] as const;
       } catch (error) {
         console.error(`Error hashing file ${file.fsPath}:`, error);
+        return undefined;
       }
     }));
 
+    // Порядок вставки задаёт приоритет при дубликатах id ("первый побеждает"),
+    // поэтому он не должен зависеть от скорости чтения файлов.
+    const hashes = new Map<string, string>();
+    for (const entry of entries) {
+      if (entry) { hashes.set(entry[0], entry[1]); }
+    }
     return hashes;
+  }
+
+  /** Структурные файлы (yaml/json) раньше sql, внутри группы — по пути: YAML перекрывает SQL. */
+  private sortFiles(files: vscode.Uri[]): vscode.Uri[] {
+    const group = (file: vscode.Uri) => (/\.sql$/i.test(file.fsPath) ? 1 : 0);
+    return [...files].sort((a, b) => {
+      const byGroup = group(a) - group(b);
+      if (byGroup !== 0) { return byGroup; }
+      return a.fsPath < b.fsPath ? -1 : a.fsPath > b.fsPath ? 1 : 0;
+    });
   }
 
   private async parseFiles(fileHashes: Map<string, string>): Promise<{

@@ -6,17 +6,14 @@ import { ExplorerItem, ExplorerProvider } from './explorerProvider';
 import { getConfig } from './settings';
 import { BlameProvider } from './blameProvider';
 import { AliasService } from './aliasService';
-import { ClassInfo, PropertyInfo, ObjectInfo } from './models';
 import { SqlProcessor } from './sqlProcessor';
 import { ConfigFileRepository } from './configFileRepository';
+import { findDefinitionOffset } from './definitionLocator';
 
 type CommandDependencies = {
   sqlProcessor: SqlProcessor;
   sqlValidator: SqlValidator;
   explorerProvider: ExplorerProvider;
-  classes: ClassInfo[];
-  properties: PropertyInfo[];
-  objects: ObjectInfo[];
   treeView: vscode.TreeView<any>;
   blameProvider: BlameProvider;
   aliasService: AliasService;
@@ -45,9 +42,6 @@ export function registerCommands(
     sqlProcessor,
     sqlValidator,
     explorerProvider,
-    classes,
-    properties,
-    objects,
     treeView,
     blameProvider,
     aliasService
@@ -83,7 +77,7 @@ export function registerCommands(
       handleShowExplorer()),
 
     vscode.commands.registerCommand(COMMANDS.MANAGE_CLASS_ALIASES, (item: ExplorerItem) =>
-      handleManageClassAliases(item, aliasService, classes, async () => {
+      handleManageClassAliases(item, aliasService, sqlProcessor, async () => {
         await vscode.commands.executeCommand(COMMANDS.REFRESH_BLAME_CACHE);
         await vscode.commands.executeCommand(COMMANDS.REFRESH_EXPLORER);
       })
@@ -156,8 +150,8 @@ export function setupFileWatchers(
 
   // Вотчер для TreeView
   createFileWatchers(async () => {
-    const { classes, objects } = await sqlProcessor.parseAllSqlFiles();
-    explorerProvider.refresh(classes, objects);
+    const { classes, objects, roles } = await sqlProcessor.parseAllSqlFiles();
+    explorerProvider.refresh(classes, objects, roles);
   });
 
   // Вотчер для BlameProvider
@@ -171,9 +165,10 @@ export function setupFileWatchers(
 async function handleManageClassAliases(
   item: ExplorerItem,
   aliasService: AliasService,
-  classes: ClassInfo[],
+  sqlProcessor: SqlProcessor,
   callback: (...args: any) => Thenable<void>
 ) {
+  const { classes } = await sqlProcessor.parseAllSqlFiles();
   const cls = classes.find(c => c.id === item.uuid);
   if (!cls) {
     getConfig().showNotifications && vscode.window.showErrorMessage('Класс не найден');
@@ -213,16 +208,20 @@ async function handleGoToDefinition(uuid: string, sqlProcessor: SqlProcessor) {
   try {
     const uri = vscode.Uri.file(target.filePath);
     const document = await vscode.workspace.openTextDocument(uri);
-    const text = document.getText();
-    const match = new RegExp(`'${uuid}'`).exec(text);
+    const offset = findDefinitionOffset(document.getText(), uuid, target.position);
 
-    if (!match) {
+    if (offset === undefined) {
       getConfig().showNotifications && vscode.window.showErrorMessage(`UUID not found in file`);
       return;
     }
 
-    const position = document.positionAt(match.index);
-    await vscode.window.showTextDocument(uri, { selection: new vscode.Range(position, position) });
+    const editor = await vscode.window.showTextDocument(document);
+    const selection = new vscode.Selection(
+      document.positionAt(offset),
+      document.positionAt(offset + uuid.length)
+    );
+    editor.selection = selection;
+    editor.revealRange(selection, vscode.TextEditorRevealType.InCenter);
     getConfig().showNotifications && vscode.window.showInformationMessage(`Navigated to: ${target.name || 'Unknown'}`);
   } catch (error) {
     getConfig().showNotifications && vscode.window.showErrorMessage(`Failed to navigate: ${error}`);
@@ -238,8 +237,8 @@ async function handleRefreshBlameCache(sqlProcessor: SqlProcessor, blameProvider
 
 
 async function handleRefreshExplorer(sqlProcessor: SqlProcessor, explorerProvider: ExplorerProvider) {
-  const { classes, objects } = await sqlProcessor.parseAllSqlFiles(true);
-  explorerProvider.refresh(classes, objects);
+  const { classes, objects, roles } = await sqlProcessor.parseAllSqlFiles(true);
+  explorerProvider.refresh(classes, objects, roles);
 }
 
 async function handleShowExplorer() {
